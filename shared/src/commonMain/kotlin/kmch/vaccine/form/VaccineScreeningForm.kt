@@ -15,10 +15,8 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
-import kotlinx.datetime.Clock
 import kotlinx.datetime.LocalDate
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.todayIn
+import kotlin.time.Clock
 
 @Composable
 fun VaccineScreeningForm() {
@@ -40,7 +38,9 @@ fun VaccineScreeningForm() {
     var address by remember { mutableStateOf("") }
     var zipCode by remember { mutableStateOf("") }
     var shotDate by remember {
-        mutableStateOf(Clock.System.todayIn(TimeZone.currentSystemDefault()).toString())
+        // kotlinx.datetime.Clock.System fails to link on the Wasm target (IrLinkageError);
+        // kotlin.time.Instant's ISO-8601 string always starts with "yyyy-MM-dd".
+        mutableStateOf(Clock.System.now().toString().substring(0, 10))
     }
 
     var submitError by remember { mutableStateOf<String?>(null) }
