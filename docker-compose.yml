@@ -5,6 +5,6 @@ services:
   frontend:
     build: .
     ports:
-      - "8080:80"
+      - "${FRONTEND_PORT:-8080}:80"
     environment:
       BACKEND_HOST: ${BACKEND_HOST:-host.docker.internal:8081}
