@@ -52,6 +52,7 @@ fun VaccineScreeningForm() {
 
     var isSubmitted by remember { mutableStateOf(false) }
     var acceptedTerms by remember { mutableStateOf(false) }
+    var acceptedVaccineInfo by remember { mutableStateOf(false) }
 
     val answers = remember { mutableStateMapOf<Int, Boolean>() }
     val remarks = remember { mutableStateMapOf<Int, String>() }
@@ -366,6 +367,24 @@ fun VaccineScreeningForm() {
                     )
                 }
 
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Row(
+                    verticalAlignment = Alignment.Top,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Checkbox(
+                        checked = acceptedVaccineInfo,
+                        onCheckedChange = { acceptedVaccineInfo = it },
+                        modifier = Modifier.padding(end = 8.dp)
+                    )
+                    Text(
+                        text = "ท่านได้รับข้อมูลเกี่ยวกับวัคซีนไข้หวัดใหญ่และได้ทำความเข้าใจแล้ว",
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(top = 12.dp)
+                    )
+                }
+
                 Spacer(modifier = Modifier.height(16.dp))
 
                 submitError?.let { error ->
@@ -429,7 +448,7 @@ fun VaccineScreeningForm() {
                         }
                     },
                     modifier = Modifier.fillMaxWidth().height(50.dp),
-                    enabled = acceptedTerms && isAllQuestionsAnswered && isPatientInfoValid && !isSubmitting
+                    enabled = acceptedTerms && acceptedVaccineInfo && isAllQuestionsAnswered && isPatientInfoValid && !isSubmitting
                 ) {
                     Text(if (isSubmitting) "กำลังบันทึก..." else "ยืนยันบันทึกข้อมูล")
                 }
