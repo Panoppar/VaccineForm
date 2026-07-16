@@ -4,44 +4,48 @@ import io.ktor.client.call.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
-import kotlinx.coroutines.CancellationException
 
-class VaccineApiService {
-    private val baseUrl = "https://mobile.kmch.kmitl.ac.th/api/v1" // เปลี่ยนตามจริง
+class ApiException(val statusCode: Int, message: String) : Exception(message)
 
-    // --- GET ---
-    suspend fun getPatients(): List<Patient> =
-        httpClient.get("$baseUrl/patients").body()
+class VaccineApiService(private val baseUrl: String = API_BASE_URL) {
 
-    suspend fun getQuestions(): List<ScreeningQuestion> =
+    suspend fun checkHealth(): HealthStatus =
+        httpClient.get("$baseUrl/health").body()
+
+    suspend fun getScreeningQuestions(): List<ScreeningQuestion> =
         httpClient.get("$baseUrl/screening-questions").body()
 
-    suspend fun getPatientRecords(patientId: Int): List<ScreeningRecord> =
-        httpClient.get("$baseUrl/patients/$patientId/records").body()
-
-    suspend fun getRecordAnswers(recordId: Int): List<ScreeningAnswer> =
-        httpClient.get("$baseUrl/records/$recordId/answers").body()
-
-    // --- POST ---
-    suspend fun submitScreeningForm(data: ScreeningSubmissionRequest): Boolean {
-        return try {
-            val response = httpClient.post("$baseUrl/screening") {
-                contentType(ContentType.Application.Json)
-                setBody(data) // Ktor จะแปลง data เป็น JSON อัตโนมัติ (ต้องมี @Serializable)
-            }
-            // คืนค่า true หาก HTTP Status Code อยู่ในช่วง 200-299
-            response.status.isSuccess()
-        } catch (e: Exception) {
-            println("API Error: ${e.message}")
-            false
+    // POST /api/v1/registrations
+    // Error: 400 (ข้อมูลผิด/เอกสารซ้ำ), 409 (วัคซีนหมดสต็อก)
+    suspend fun submitRegistration(request: RegistrationRequest): RegistrationResponse {
+        val response = httpClient.post("$baseUrl/registrations") {
+            contentType(ContentType.Application.Json)
+            setBody(request)
         }
+        if (!response.status.isSuccess()) {
+            throw ApiException(response.status.value, response.bodyAsText())
+        }
+        return response.body()
     }
 
-    suspend fun confirmVaccination(recordData: VaccinationRecord): Boolean {
-        val response = httpClient.post("$baseUrl/vaccinations") {
-            contentType(ContentType.Application.Json)
-            setBody(recordData)
-        }
-        return response.status.isSuccess()
+    // GET /api/v1/registrations?q=<คำค้น>&page=1&limit=20
+    suspend fun listRegistrations(
+        query: String? = null,
+        page: Int = 1,
+        limit: Int = 20
+    ): RegistrationListResponse =
+        httpClient.get("$baseUrl/registrations") {
+            url {
+                parameters.append("page", page.toString())
+                parameters.append("limit", limit.toString())
+                if (!query.isNullOrBlank()) parameters.append("q", query)
+            }
+        }.body()
+
+    // GET /api/v1/registrations/:patient_id
+    suspend fun getRegistrationDetail(patientId: Int): RegistrationDetail? {
+        val response = httpClient.get("$baseUrl/registrations/$patientId")
+        if (response.status == HttpStatusCode.NotFound) return null
+        return response.body()
     }
 }

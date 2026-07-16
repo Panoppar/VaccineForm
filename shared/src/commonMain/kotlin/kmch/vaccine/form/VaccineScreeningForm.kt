@@ -1,6 +1,5 @@
 package kmch.vaccine.form
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -16,30 +15,52 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
+import kotlinx.datetime.Clock
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.todayIn
 
 @Composable
 fun VaccineScreeningForm() {
     val apiService = remember { VaccineApiService() }
     val coroutineScope = rememberCoroutineScope()
 
-    // 1. State สำหรับเก็บคำถามจาก API
+    // ---- ข้อมูลผู้ป่วย (จำเป็นสำหรับ POST /api/v1/registrations) ----
+    var prefix by remember { mutableStateOf("") }
+    var firstName by remember { mutableStateOf("") }
+    var lastName by remember { mutableStateOf("") }
+    var sex by remember { mutableStateOf<Sex?>(null) }
+    var patientType by remember { mutableStateOf<PatientType?>(null) }
+    var documentType by remember { mutableStateOf(DocumentType.ID_CARD) }
+    var idCard by remember { mutableStateOf("") }
+    var passportId by remember { mutableStateOf("") }
+    var age by remember { mutableStateOf("") }
+    var telNo by remember { mutableStateOf("") }
+    var underlyingDisease by remember { mutableStateOf("") }
+    var address by remember { mutableStateOf("") }
+    var zipCode by remember { mutableStateOf("") }
+    var shotDate by remember {
+        mutableStateOf(Clock.System.todayIn(TimeZone.currentSystemDefault()).toString())
+    }
+
+    var submitError by remember { mutableStateOf<String?>(null) }
+    var isSubmitting by remember { mutableStateOf(false) }
+
+    // ---- คำถามคัดกรอง ----
     var questionList by remember { mutableStateOf<List<ScreeningQuestion>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
 
     var isSubmitted by remember { mutableStateOf(false) }
     var acceptedTerms by remember { mutableStateOf(false) }
-    var emailInput by remember { mutableStateOf("") }
 
     val answers = remember { mutableStateMapOf<Int, Boolean>() }
     val remarks = remember { mutableStateMapOf<Int, String>() }
     val scrollState = rememberScrollState()
     val uriHandler = LocalUriHandler.current
 
-    // 2. ดึงคำถามเมื่อโหลดหน้าฟอร์ม
     LaunchedEffect(Unit) {
         try {
-            questionList =
-                apiService.getQuestions().filter { it.active }.sortedBy { it.displayOrder }
+            questionList = apiService.getScreeningQuestions().sortedBy { it.displayOrder }
         } catch (e: Exception) {
             println("Error fetching questions: ${e.message}")
         } finally {
@@ -47,7 +68,6 @@ fun VaccineScreeningForm() {
         }
     }
 
-    // 3. เปลี่ยนจาก mockQuestions เป็น questionList
     val isAllQuestionsAnswered = questionList.all { question ->
         val isTextQuestion = question.questionText.startsWith("[Text]")
         if (isTextQuestion) {
@@ -56,6 +76,16 @@ fun VaccineScreeningForm() {
             answers.containsKey(question.questionId)
         }
     }
+
+    val parsedAge = age.toIntOrNull()
+    val parsedShotDate = runCatching { LocalDate.parse(shotDate) }.getOrNull()
+    val isDocumentValid = when (documentType) {
+        DocumentType.ID_CARD -> idCard.isNotBlank()
+        DocumentType.PASSPORT -> passportId.isNotBlank()
+    }
+    val isPatientInfoValid = prefix.isNotBlank() && firstName.isNotBlank() && lastName.isNotBlank() &&
+        sex != null && patientType != null && isDocumentValid &&
+        parsedAge != null && parsedAge > 0 && telNo.isNotBlank() && parsedShotDate != null
 
     if (!isSubmitted) {
         if (isLoading) {
@@ -81,8 +111,146 @@ fun VaccineScreeningForm() {
                 )
                 Spacer(modifier = Modifier.height(24.dp))
 
+                // ==================== ข้อมูลผู้มารับบริการ ====================
+                Text("ข้อมูลผู้มารับบริการ", style = MaterialTheme.typography.titleMedium)
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    OutlinedTextField(
+                        value = prefix,
+                        onValueChange = { prefix = it },
+                        label = { Text("คำนำหน้า") },
+                        placeholder = { Text("นาย / นาง / นางสาว") },
+                        modifier = Modifier.width(160.dp)
+                    )
+                    OutlinedTextField(
+                        value = firstName,
+                        onValueChange = { firstName = it },
+                        label = { Text("ชื่อ") },
+                        modifier = Modifier.weight(1f)
+                    )
+                    OutlinedTextField(
+                        value = lastName,
+                        onValueChange = { lastName = it },
+                        label = { Text("นามสกุล") },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text("เพศ", style = MaterialTheme.typography.bodyMedium)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    RadioButton(selected = sex == Sex.MALE, onClick = { sex = Sex.MALE })
+                    Text("ชาย")
+                    Spacer(modifier = Modifier.width(24.dp))
+                    RadioButton(selected = sex == Sex.FEMALE, onClick = { sex = Sex.FEMALE })
+                    Text("หญิง")
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text("ประเภทผู้มารับบริการ", style = MaterialTheme.typography.bodyMedium)
+                Column {
+                    val patientTypeOptions = listOf(
+                        PatientType.STUDENT to "นักศึกษา",
+                        PatientType.EMPLOYEE to "พนักงาน",
+                        PatientType.COMPANY to "บริษัทคู่สัญญา",
+                        PatientType.EXTERNAL to "บุคคลภายนอก"
+                    )
+                    patientTypeOptions.forEach { (type, label) ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            RadioButton(selected = patientType == type, onClick = { patientType = type })
+                            Text(label)
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text("เอกสารยืนยันตัวตน", style = MaterialTheme.typography.bodyMedium)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    RadioButton(
+                        selected = documentType == DocumentType.ID_CARD,
+                        onClick = { documentType = DocumentType.ID_CARD }
+                    )
+                    Text("บัตรประชาชน")
+                    Spacer(modifier = Modifier.width(24.dp))
+                    RadioButton(
+                        selected = documentType == DocumentType.PASSPORT,
+                        onClick = { documentType = DocumentType.PASSPORT }
+                    )
+                    Text("พาสปอร์ต")
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                if (documentType == DocumentType.ID_CARD) {
+                    OutlinedTextField(
+                        value = idCard,
+                        onValueChange = { idCard = it },
+                        label = { Text("เลขบัตรประจำตัวประชาชน") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                } else {
+                    OutlinedTextField(
+                        value = passportId,
+                        onValueChange = { passportId = it },
+                        label = { Text("เลขที่พาสปอร์ต") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    OutlinedTextField(
+                        value = age,
+                        onValueChange = { new -> age = new.filter { it.isDigit() } },
+                        label = { Text("อายุ") },
+                        modifier = Modifier.width(120.dp)
+                    )
+                    OutlinedTextField(
+                        value = telNo,
+                        onValueChange = { telNo = it },
+                        label = { Text("เบอร์โทรศัพท์") },
+                        modifier = Modifier.weight(1f)
+                    )
+                    OutlinedTextField(
+                        value = shotDate,
+                        onValueChange = { shotDate = it },
+                        label = { Text("วันที่รับวัคซีน (YYYY-MM-DD)") },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+
+                OutlinedTextField(
+                    value = underlyingDisease,
+                    onValueChange = { underlyingDisease = it },
+                    label = { Text("โรคประจำตัว (ถ้ามี)") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    OutlinedTextField(
+                        value = address,
+                        onValueChange = { address = it },
+                        label = { Text("ที่อยู่ (ถ้ามี)") },
+                        modifier = Modifier.weight(1f)
+                    )
+                    OutlinedTextField(
+                        value = zipCode,
+                        onValueChange = { new -> zipCode = new.filter { it.isDigit() } },
+                        label = { Text("รหัสไปรษณีย์") },
+                        modifier = Modifier.width(140.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+                HorizontalDivider()
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // ==================== คำถามคัดกรอง ====================
+                Text("แบบคัดกรองสุขภาพ", style = MaterialTheme.typography.titleMedium)
+                Spacer(modifier = Modifier.height(8.dp))
+
                 if (questionList.isEmpty()) {
-                    // กรณีโหลดเสร็จแล้วแต่ไม่มีข้อมูลคำถามกลับมาเลยจาก API
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -96,21 +264,11 @@ fun VaccineScreeningForm() {
                         )
                     }
                 } else {
-                    // วนลูปสร้างคำถามจากข้อมูลจริงที่ดึงมาจาก API (ซึ่งเรียงลำดับมาแล้วตั้งแต่ขั้นตอนโหลดข้อมูล)
                     questionList.forEach { question ->
-                        // 1. จัดการ ID ให้ปลอดภัย ป้องกันกรณี Backend ส่งค่า null มา
-                        val qId = question.questionId ?: return@forEach // หรือใช้ ?: 0 ตามความเหมาะสมของโมเดล
-
-                        // 2. ตรวจสอบประเภทคำถามอย่างปลอดภัย
-                        val rawText = question.questionText ?: ""
+                        val qId = question.questionId
+                        val rawText = question.questionText
                         val isTextQuestion = rawText.startsWith("[Text]")
-
-                        // ลบคำว่า [Text] ออกเพื่อแสดงผลได้อย่างสวยงาม
-                        val displayText = if (isTextQuestion) {
-                            rawText.removePrefix("[Text]").trim()
-                        } else {
-                            rawText
-                        }
+                        val displayText = if (isTextQuestion) rawText.removePrefix("[Text]").trim() else rawText
 
                         Card(
                             modifier = Modifier
@@ -123,29 +281,19 @@ fun VaccineScreeningForm() {
                                 Spacer(modifier = Modifier.height(8.dp))
 
                                 if (isTextQuestion) {
-                                    // ==========================================
-                                    // กรณีที่ 1: เป็นคำถามแบบ [Text] (ช่องพิมพ์คำตอบ)
-                                    // ==========================================
                                     OutlinedTextField(
                                         value = remarks[qId] ?: "",
-                                        onValueChange = { newValue ->
-                                            remarks[qId] = newValue // นำ 'as Int' ออกแล้ว เพราะใช้ qId ที่ปลอดภัยแทน
-                                        },
+                                        onValueChange = { newValue -> remarks[qId] = newValue },
                                         label = { Text("ระบุคำตอบของคุณ") },
                                         modifier = Modifier.fillMaxWidth(),
                                         singleLine = false,
                                         maxLines = 3
                                     )
                                 } else {
-                                    // ==========================================
-                                    // กรณีที่ 2: เป็นคำถามปกติ (ตัวเลือก ใช่ / ไม่ใช่)
-                                    // ==========================================
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         RadioButton(
                                             selected = answers[qId] == true,
-                                            onClick = {
-                                                answers[qId] = true
-                                            }
+                                            onClick = { answers[qId] = true }
                                         )
                                         Text("มี / ใช่")
                                         Spacer(modifier = Modifier.width(24.dp))
@@ -154,7 +302,6 @@ fun VaccineScreeningForm() {
                                             selected = answers[qId] == false,
                                             onClick = {
                                                 answers[qId] = false
-                                                // เคลียร์ค่า remark เมื่อผู้ใช้เปลี่ยนใจตอบว่า "ไม่ใช่"
                                                 remarks.remove(qId)
                                             }
                                         )
@@ -171,28 +318,24 @@ fun VaccineScreeningForm() {
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Row(
-                    verticalAlignment = Alignment.Top, // ปรับให้ Checkbox อยู่ขนานกับบรรทัดแรกของข้อความ
+                    verticalAlignment = Alignment.Top,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Checkbox(
                         checked = acceptedTerms,
                         onCheckedChange = { acceptedTerms = it },
-                        // เพิ่ม padding ให้ตัว Checkbox ไม่ชิดข้อความเกินไป
                         modifier = Modifier.padding(end = 8.dp)
                     )
 
-                    // สร้าง AnnotatedString เพื่อประกอบข้อความและฝัง Link
                     val pdpaAnnotatedString = buildAnnotatedString {
                         append("โรงพยาบาลพระจอมเกล้าเจ้าคุณทหาร สถาบันเทคโนโลยีพระจอมเกล้าเจ้าคุณทหารลาดกระบัง (KMITL) มีการเก็บรวบรวม ใช้ และเปิดเผยข้อมูลส่วนบุคคลของท่าน ประกอบด้วย ชื่อ นามสกุล อีเมล เลขบัตรประจำตัวประชาชน อายุ หมายเลขโทรศัพท์ คณะ ข้อมูลสุขภาพ พฤติกรรม และสุขภาวะแวดล้อม เพื่อดำเนินการ ประสานงาน รวมถึงติดต่อกรณีที่มีอันจำเป็นภายหลังการตรวจสุขภาพ ในโครงการตรวจสุขภาพนักศึกษา ประจำปีงบประมาณ 2569 โดยใช้ “ฐานสัญญาและฐานความจำเป็นเพื่อประโยชน์โดยชอบด้วยกฎหมาย”\n\n")
                         append("ทางโรงพยาบาลยืนยันว่าข้อมูลส่วนบุคคลของท่านจะถูกเก็บเป็นความลับ และไม่มีการเปิดเผยโดยปราศจากความยินยอมของท่าน เว้นแต่เป็นการเปิดเผยตามที่กฎหมายกำหนด หรือตามหน้าที่ หรือเมื่อมีข้อบ่งชี้และความจำเป็นในการวินิจฉัย รักษาโรคและฟื้นฟูสภาพของข้าพเจ้า ซึ่งกรณีที่ตรวจพบความผิดปกติ ทางโรงพยาบาลจะมีการแจ้งผลให้ท่านทราบ เพื่อเป็นการติดตามและดูแลต่อไป\n\n")
                         append("หากมีข้อสงสัยเกี่ยวกับการคุ้มครองข้อมูลส่วนบุคคล สามารถสืบค้นข้อมูลเพิ่มเติมและช่องทางติดต่อได้ที่เว็บไซต์ ")
 
-                        // เริ่มสร้าง Tag URL ให้กับข้อความส่วนนี้
                         pushStringAnnotation(
                             tag = "URL",
                             annotation = "https://pdpa.kmitl.ac.th"
                         )
-                        // ตกแต่งข้อความส่วนที่เป็น Link ให้เป็นสี Primary และมีเส้นใต้
                         withStyle(
                             style = SpanStyle(
                                 color = MaterialTheme.colorScheme.primary,
@@ -201,87 +344,98 @@ fun VaccineScreeningForm() {
                         ) {
                             append("pdpa.kmitl.ac.th")
                         }
-                        pop() // ปิด Tag
+                        pop()
                     }
 
-                    // ใช้ ClickableText แทน Text ธรรมดาเพื่อให้รับ Event การคลิกได้
                     ClickableText(
                         text = pdpaAnnotatedString,
                         style = MaterialTheme.typography.bodyMedium.copy(
-                            color = MaterialTheme.colorScheme.onSurface // บังคับสีพื้นฐานของข้อความให้กลืนไปกับ Theme ปัจจุบัน
+                            color = MaterialTheme.colorScheme.onSurface
                         ),
-                        modifier = Modifier.padding(top = 12.dp), // ดันข้อความลงมานิดหน่อยให้ Center กับกล่อง Checkbox แถวแรก
+                        modifier = Modifier.padding(top = 12.dp),
                         onClick = { offset ->
-                            // ตรวจสอบว่าจุดที่ผู้ใช้กดตรงกับข้อความที่แนบ tag "URL" ไว้หรือไม่
                             pdpaAnnotatedString.getStringAnnotations(
                                 tag = "URL",
                                 start = offset,
                                 end = offset
                             )
                                 .firstOrNull()?.let { annotation ->
-                                    // ถ้าใช่ ให้ใช้ uriHandler สั่งเปิด Link ใน Browser
                                     uriHandler.openUri(annotation.item)
                                 }
                         }
                     )
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(16.dp))
+
+                submitError?.let { error ->
+                    Text(
+                        text = error,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
 
                 Button(
                     onClick = {
                         coroutineScope.launch {
-                            // 1. แปลง Map ของคำตอบและข้อความ ให้กลายเป็น List<ScreeningAnswerRequest>
-                            val answerList = questionList.map { question ->
-                                val qId = question.questionId ?: 0
-                                val isTextQuestion = question.questionText.startsWith("[Text]")
-
-                                ScreeningAnswerRequest(
-                                    questionId = qId,
-                                    // ถ้าเป็นคำถาม Text ปกติจะไม่มี Yes/No ให้บังคับเป็น false ไว้ก่อน (หรือตามที่ตกลงกับ Backend)
-                                    // ถ้าเป็นคำถามปกติ ให้ดึงค่าจาก Map answers มาใช้ (ถ้าไม่มีค่า default เป็น false)
-                                    answer = if (isTextQuestion) false else (answers[qId] == true),
-
-                                    // ดึงข้อความจาก Map remarks (ถ้าไม่ได้พิมพ์จะเป็น null)
-                                    remark = remarks[qId]
-                                )
-                            }
-
-                            // 2. ประกอบร่างเป็น Request ก้อนใหญ่
-                            val requestData = ScreeningSubmissionRequest(
-                                patientId = null, // TODO: ระบุ ID ถ้ามี (ดึงจาก Parameter ของหน้าจอ)
-                                patient = null,   // TODO: ถ้าระบุ ID ไม่ได้ ต้องสร้าง Object Patient ใส่เข้าไป
-                                createdBy = "USER", // TODO: เปลี่ยนเป็นรหัสพนักงานหรือ "SELF"
-                                answers = answerList
-                            )
-
-                            // 3. ยิง API ส่งให้ Golang Backend
+                            submitError = null
+                            isSubmitting = true
                             try {
-                                // เรียกใช้ API ที่เราเปิดใช้งานไว้
-                                val isSuccess = apiService.submitScreeningForm(requestData)
+                                val answerList = questionList.map { question ->
+                                    val qId = question.questionId
+                                    val isTextQuestion = question.questionText.startsWith("[Text]")
+                                    RegistrationAnswerRequest(
+                                        questionId = qId,
+                                        answer = if (isTextQuestion) false else (answers[qId] == true),
+                                        remark = remarks[qId]
+                                    )
+                                }
 
-                                if (isSuccess) {
-                                    println("Data submitted successfully!")
-                                    isSubmitted = true // เปลี่ยน State เพื่อแสดงหน้า Success
-                                } else {
-                                    println("Failed to submit data. API returned error status.")
-                                    // คุณสามารถเพิ่ม State สำหรับโชว์ Snackbar หรือ Dialog แจ้งเตือนผู้ใช้ตรงนี้ได้
+                                // isPatientInfoValid (ซึ่งคุม enabled ของปุ่มนี้) การันตีแล้วว่าค่าเหล่านี้ไม่ null
+                                val requestData = RegistrationRequest(
+                                    prefix = prefix,
+                                    firstName = firstName,
+                                    lastName = lastName,
+                                    sex = sex!!,
+                                    patientType = patientType!!,
+                                    documentType = documentType,
+                                    idCard = idCard.ifBlank { null },
+                                    passportId = passportId.ifBlank { null },
+                                    age = parsedAge!!,
+                                    telNo = telNo,
+                                    underlyingDisease = underlyingDisease.ifBlank { null },
+                                    address = address.ifBlank { null },
+                                    zipCode = zipCode.ifBlank { null },
+                                    shotDate = parsedShotDate!!,
+                                    answers = answerList
+                                )
+
+                                apiService.submitRegistration(requestData)
+                                isSubmitted = true
+                            } catch (e: ApiException) {
+                                submitError = when (e.statusCode) {
+                                    400 -> "ข้อมูลไม่ถูกต้องหรือเอกสารซ้ำในระบบ กรุณาตรวจสอบอีกครั้ง"
+                                    409 -> "วัคซีนหมดสต็อกในขณะนี้ กรุณาติดต่อเจ้าหน้าที่"
+                                    else -> "เกิดข้อผิดพลาด (${e.statusCode}) กรุณาลองใหม่อีกครั้ง"
                                 }
                             } catch (e: Exception) {
-                                // จัดการ Error กรณี Network พัง หรือ Backend ล่ม
-                                println("Network/Exception Error submitting form: ${e.cause}")
+                                submitError = "ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ กรุณาลองใหม่อีกครั้ง"
+                                println("Network/Exception Error submitting form: ${e.message}")
+                            } finally {
+                                isSubmitting = false
                             }
                         }
                     },
                     modifier = Modifier.fillMaxWidth().height(50.dp),
-                    enabled = acceptedTerms && isAllQuestionsAnswered
+                    enabled = acceptedTerms && isAllQuestionsAnswered && isPatientInfoValid && !isSubmitting
                 ) {
-                    Text("ยืนยันบันทึกข้อมูล")
+                    Text(if (isSubmitting) "กำลังบันทึก..." else "ยืนยันบันทึกข้อมูล")
                 }
             }
         }
     } else {
-        // ... (โค้ดส่วนหน้าจอ Success เหมือนเดิม) ...
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -294,34 +448,6 @@ fun VaccineScreeningForm() {
                 style = MaterialTheme.typography.headlineMedium,
                 color = MaterialTheme.colorScheme.primary
             )
-            Spacer(modifier = Modifier.height(24.dp))
-
-//            Button(
-//                onClick = { /* TODO: Generate PDF */ },
-//                modifier = Modifier.fillMaxWidth()
-//            ) {
-//                Text("ดาวน์โหลดใบคัดกรอง (PDF)")
-//            }
-//
-//            Spacer(modifier = Modifier.height(32.dp))
-//            HorizontalDivider()
-//            Spacer(modifier = Modifier.height(32.dp))
-//
-//            Text("หรือ ส่งไฟล์คัดกรองเข้าอีเมลเพื่อนำไปปริ้นท์")
-//            Spacer(modifier = Modifier.height(16.dp))
-//            OutlinedTextField(
-//                value = emailInput,
-//                onValueChange = { emailInput = it },
-//                label = { Text("ระบุ Email Address") },
-//                modifier = Modifier.fillMaxWidth()
-//            )
-//            Spacer(modifier = Modifier.height(16.dp))
-//            Button(
-//                onClick = { /* TODO: Send Email API */ },
-//                modifier = Modifier.fillMaxWidth()
-//            ) {
-//                Text("ส่งเข้า Email")
-//            }
         }
     }
 }

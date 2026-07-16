@@ -1,0 +1,10 @@
+# Frontend only — the Go backend is deployed separately.
+# Point BACKEND_HOST at wherever it's running (host:8081), e.g. a VM, another
+# container on a shared network, or your local machine while developing.
+services:
+  frontend:
+    build: .
+    ports:
+      - "8080:80"
+    environment:
+      BACKEND_HOST: ${BACKEND_HOST:-host.docker.internal:8081}

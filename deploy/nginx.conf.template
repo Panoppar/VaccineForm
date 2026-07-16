@@ -1,0 +1,39 @@
+# ${BACKEND_HOST} is substituted at container start by the official nginx
+# entrypoint's envsubst step (nginx:1.27-alpine). Override at runtime with:
+#   docker run -e BACKEND_HOST=your-go-host:8081 ...
+#
+# This mirrors the "/vaccine-api/" -> "http://vaccinework_app:8081/" route the
+# hospitalKMCH shared reverse proxy adds in real deployment, so the app talks
+# to the exact same path locally and in production. In production this block
+# is redundant (the shared proxy intercepts /vaccine-api/ before it reaches
+# this container) but harmless — it's here for standalone local testing.
+
+server {
+    listen 80;
+    server_name _;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # A bare `types {}` block replaces nginx's whole MIME table instead of
+    # extending it — that stripped text/html from index.html and made the
+    # browser download it instead of rendering it. Include the defaults first.
+    types {
+        include /etc/nginx/mime.types;
+        application/wasm wasm;
+    }
+
+    # Strips the /vaccine-api/ prefix and forwards the rest as-is, e.g.
+    # /vaccine-api/api/v1/registrations -> http://BACKEND_HOST/api/v1/registrations
+    location /vaccine-api/ {
+        proxy_pass http://${BACKEND_HOST}/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}

@@ -14,6 +14,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kmch.vaccine.form.util.PrintAnswerItem
 import kmch.vaccine.form.util.printVaccineDocument
+import kotlinx.coroutines.delay
 
 @Composable
 fun AdminDashBoardScreen(onNavigateBack: () -> Unit) {
@@ -63,33 +64,20 @@ fun AdminListView(
 ) {
     var searchQuery by remember { mutableStateOf("") }
 
-    // 1. เพิ่ม State สำหรับเก็บข้อมูลจริงจาก API
     val apiService = remember { VaccineApiService() }
-    var patientsList by remember { mutableStateOf<List<Patient>>(emptyList()) }
+    var registrationsList by remember { mutableStateOf<List<RegistrationListItem>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
 
-    // 2. ดึงข้อมูลเมื่อโหลดหน้านี้ครั้งแรก
-    LaunchedEffect(Unit) {
+    // ดึงรายการจาก GET /api/v1/registrations?q=... ทุกครั้งที่ผู้ใช้พิมพ์ค้นหา (หน่วงเวลาเล็กน้อยกันยิง API รัว)
+    LaunchedEffect(searchQuery) {
+        delay(300)
+        isLoading = true
         try {
-            patientsList = apiService.getPatients()
+            registrationsList = apiService.listRegistrations(query = searchQuery.ifBlank { null }).items
         } catch (e: Exception) {
-            println("Error fetching patients: ${e.message}")
+            println("Error fetching registrations: ${e.message}")
         } finally {
             isLoading = false
-        }
-    }
-
-    // 3. เปลี่ยนจาก mockPatients เป็น patientsList
-    val filteredPatients = remember(searchQuery, patientsList) {
-        if (searchQuery.isBlank()) {
-            patientsList
-        } else {
-            patientsList.filter { patient ->
-                val idMatch = patient.patientId?.toString()?.contains(searchQuery, ignoreCase = true) == true
-                val firstNameMatch = patient.firstName.contains(searchQuery, ignoreCase = true)
-                val lastNameMatch = patient.lastName.contains(searchQuery, ignoreCase = true)
-                idMatch || firstNameMatch || lastNameMatch
-            }
         }
     }
 
@@ -124,7 +112,7 @@ fun AdminListView(
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
-                    label = { Text("ค้นหาเลขอัตรา") }
+                    label = { Text("ค้นหาชื่อ/เลขบัตร/เบอร์โทร") }
                 )
                 FloatingActionButton(onClick = onCreateNew) {
                     Text("+")
@@ -140,7 +128,7 @@ fun AdminListView(
             Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
             }
-        } else if (filteredPatients.isEmpty()) {
+        } else if (registrationsList.isEmpty()) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -158,23 +146,23 @@ fun AdminListView(
                 modifier = Modifier.fillMaxWidth().weight(1f),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(filteredPatients) { patient ->
+                items(registrationsList) { item ->
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        onClick = {
-                            patient.patientId?.let { id ->
-                                onPatientSelected(id)
-                            }
-                        }
+                        onClick = { onPatientSelected(item.patientId) }
                     ) {
                         Row(
                             modifier = Modifier.padding(16.dp).fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("รหัส: ${patient.patientId}", style = MaterialTheme.typography.bodyLarge)
-                            Text("ชื่อ-นามสกุล: ${patient.firstName} ${patient.lastName}", style = MaterialTheme.typography.bodyLarge)
-                            Text("โรคประจำตัว: ${patient.underlyingDisease}")
+                            Text("รหัส: ${item.patientId}", style = MaterialTheme.typography.bodyLarge)
+                            Text(
+                                "ชื่อ-นามสกุล: ${item.prefix}${item.firstName} ${item.lastName}",
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                            Text("เบอร์โทร: ${item.telNo}")
+                            Text("วันที่รับวัคซีน: ${item.shotDate}")
                         }
                     }
                 }
@@ -191,9 +179,6 @@ fun AdminDetailView(
     employeeRateId: String,
     onBack: () -> Unit
 ) {
-    val apiService = remember { VaccineApiService() }
-    val coroutineScope = rememberCoroutineScope()
-
     Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
         Button(onClick = onBack) {
             Text("< กลับหน้ารายการคัดกรอง")
@@ -205,93 +190,47 @@ fun AdminDetailView(
             Text("กรอกแบบคัดกรองใหม่โดยเจ้าหน้าที่", style = MaterialTheme.typography.headlineSmall)
             Spacer(modifier = Modifier.height(16.dp))
 
+            // VaccineScreeningForm ยิง POST /api/v1/registrations ให้เองเมื่อกดยืนยันบันทึกข้อมูลในฟอร์ม
             VaccineScreeningForm()
-
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
-                horizontalArrangement = Arrangement.End,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Button(
-                    onClick = {
-                        // TODO (API): POST บันทึกข้อมูลแบบสอบถามเข้าฐานข้อมูล
-                        // เตรียมข้อมูลที่จะส่งไป:
-                        // val requestData = mapOf(
-                        //     "patientId" to "NEW",
-                        //     "staffId" to employeeRateId, // นำมาใช้งานตรงนี้ได้เลย
-                        //     "lot" to lotInput            // นำมาใช้งานตรงนี้ได้เลย
-                        // )
-                    },
-                    modifier = Modifier.padding(end = 16.dp)
-                ) {
-                    Text("บันทึกและพิมพ์")
-                }
-
-                Button(
-                    onClick = {
-                        // TODO (API): POST ข้อมูลเข้า Vaccination_Record เพื่อตัด Lot วัคซีน
-                        // val recordData = mapOf(
-                        //     "lotNumber" to lotInput,
-                        //     "administeredBy" to employeeRateId
-                        // )
-                        println("ยืนยันฉีดวัคซีน: Lot=$lotInput, Staff=$employeeRateId")
-                    }
-                ) {
-                    Text("ยืนยันได้รับวัคซีนจริง")
-                }
-            }
         } else { // กรณีดูรายละเอียดผู้ป่วย (isNew == false)
-            // สร้าง State สำหรับเก็บข้อมูล Detail
-            var patient by remember { mutableStateOf<Patient?>(null) }
-            var latestRecord by remember { mutableStateOf<ScreeningRecord?>(null) }
-            var recordAnswers by remember { mutableStateOf<List<ScreeningAnswer>>(emptyList()) }
-            var activeQuestions by remember { mutableStateOf<List<ScreeningQuestion>>(emptyList()) }
+            val apiService = remember { VaccineApiService() }
+            var detail by remember { mutableStateOf<RegistrationDetail?>(null) }
             var isLoading by remember { mutableStateOf(true) }
+            var loadError by remember { mutableStateOf<String?>(null) }
 
-            // ยิง API ดึงข้อมูลทั้งหมดที่เกี่ยวกับคนๆ นี้
+            // ยิง GET /api/v1/registrations/:patient_id
             LaunchedEffect(patientId) {
                 if (patientId != null) {
+                    isLoading = true
+                    loadError = null
                     try {
-                        isLoading = true
-                        // สมมติว่าสร้าง getPatientById เพิ่มใน apiService แล้ว
-                        patient = apiService.getPatients().find { it.patientId == patientId }
-                        activeQuestions = apiService.getQuestions().filter { it.active }.sortedBy { it.displayOrder }
-
-                        val records = apiService.getPatientRecords(patientId)
-                        latestRecord = records.maxByOrNull { it.createdAt }
-
-                        if (latestRecord != null) {
-                            recordAnswers = apiService.getRecordAnswers(latestRecord!!.recordId!!)
-                        }
+                        detail = apiService.getRegistrationDetail(patientId)
+                        if (detail == null) loadError = "ไม่พบข้อมูลผู้ป่วย"
                     } catch (e: Exception) {
-                        println("Error loading details: ${e.message}")
+                        loadError = "โหลดข้อมูลไม่สำเร็จ: ${e.message}"
                     } finally {
                         isLoading = false
                     }
                 }
             }
 
-
             Text("รายละเอียดแบบคัดกรอง (Patient ID: $patientId)", style = MaterialTheme.typography.headlineSmall)
             Spacer(modifier = Modifier.height(16.dp))
 
-            // 🌟 1. ดึงค่าจาก State มาเก็บในตัวแปร val ธรรมดาก่อน
-            val currentPatient = patient
-            val currentRecord = latestRecord
+            val currentDetail = detail
 
             Card(
                 modifier = Modifier.fillMaxWidth().weight(1f),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
             ) {
-                // 🌟 2. เปลี่ยนมาเช็ค null จากตัวแปร val ที่เราสร้างไว้แทน
-                if (currentPatient == null) {
+                if (isLoading) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("ไม่พบข้อมูลผู้ป่วย", color = MaterialTheme.colorScheme.error)
+                        CircularProgressIndicator()
                     }
-                } else if (currentRecord == null) {
+                } else if (currentDetail == null) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("ผู้ป่วยรายนี้ยังไม่เคยทำแบบประเมิน", style = MaterialTheme.typography.bodyLarge)
+                        Text(loadError ?: "ไม่พบข้อมูลผู้ป่วย", color = MaterialTheme.colorScheme.error)
                     }
                 } else {
                     LazyColumn(
@@ -301,19 +240,17 @@ fun AdminDetailView(
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         item {
-                            // 🌟 3. ส่งตัวแปรที่ถูก Smart Cast (มองว่าไม่ null แล้ว) เข้าไปใช้งาน
-                            PatientInfoHeader(patient = currentPatient, record = currentRecord)
+                            PatientInfoHeader(detail = currentDetail)
                             Divider(modifier = Modifier.padding(vertical = 16.dp))
                             Text(
-                                text = "ประวัติการตอบคำถาม (ฉบับล่าสุด)",
+                                text = "ประวัติการตอบคำถาม",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold
                             )
                         }
 
-                        items(activeQuestions) { question ->
-                            val answer = recordAnswers.find { it.questionId == question.questionId }
-                            QuestionAnswerItem(question = question, answer = answer)
+                        items(currentDetail.answers) { answer ->
+                            QuestionAnswerItem(answer = answer)
                         }
                     }
                 }
@@ -326,42 +263,34 @@ fun AdminDetailView(
             ) {
                 Button(
                     onClick = {
-                        // 🌟 1. ทำ Snapshot ดึงค่ามาเก็บไว้ใน val เฉพาะตอนที่กดปุ่ม
-                        val currentPatient = patient
-                        val currentRecord = latestRecord
-
-                        // 🌟 2. เช็คจากตัวแปร Snapshot
-                        if (currentPatient != null && currentRecord != null) {
-                            val printItems = activeQuestions.map { question ->
-                                val answer = recordAnswers.find { it.questionId == question.questionId }
+                        val snapshot = detail
+                        if (snapshot != null) {
+                            val printItems = snapshot.answers.mapIndexed { index, answer ->
                                 PrintAnswerItem(
-                                    order = question.displayOrder,
-                                    question = question.questionText,
-                                    isYes = answer?.answer ?: false,
-                                    remark = answer?.remark
+                                    order = index + 1,
+                                    question = answer.questionText,
+                                    isYes = answer.answer,
+                                    remark = answer.remark
                                 )
                             }
-                            // 🌟 3. เรียกใช้งานได้เลยโดยไม่ติด Error
-                            val formattedDate = currentRecord.createdAt.toString()
-
                             printVaccineDocument(
-                                patientId = currentPatient.patientId.toString(),
-                                fullName = "${currentPatient.firstName} ${currentPatient.lastName}",
-                                date = formattedDate,
+                                patientId = snapshot.patientId.toString(),
+                                fullName = "${snapshot.prefix}${snapshot.firstName} ${snapshot.lastName}",
+                                date = snapshot.shotDate.toString(),
                                 answers = printItems
                             )
                         }
                     },
-                    modifier = Modifier.padding(end = 16.dp)
+                    modifier = Modifier.padding(end = 16.dp),
+                    enabled = detail != null
                 ) {
                     Text("พิมพ์ใบคัดกรอง")
                 }
 
                 Button(
                     onClick = {
-                        // TODO (API): POST ข้อมูลเข้า Vaccination_Record เพื่อตัด Lot วัคซีน
-                        // ใช้ค่าจาก Parameter ได้ทันที
-                        println("บันทึกการฉีดวัคซีนของผู้ป่วย ${patient?.patientId} ด้วย Lot $lotInput โดยเจ้าหน้าที่ $employeeRateId")
+                        // TODO (API): ยังไม่มี endpoint แยกสำหรับยืนยันฉีดจริง — POST /registrations สร้าง vaccination record ให้แล้วในขั้นตอนลงทะเบียน
+                        println("บันทึกการฉีดวัคซีนของผู้ป่วย $patientId ด้วย Lot $lotInput โดยเจ้าหน้าที่ $employeeRateId")
                     }
                 ) {
                     Text("ยืนยันได้รับวัคซีนจริง")
@@ -372,19 +301,39 @@ fun AdminDetailView(
 }
 
 @Composable
-fun PatientInfoHeader(patient: Patient, record: ScreeningRecord) {
+fun PatientInfoHeader(detail: RegistrationDetail) {
     Column {
-        Text(text = "ชื่อ-นามสกุล: ${patient.firstName} ${patient.lastName}", style = MaterialTheme.typography.bodyLarge)
-        Text(text = "รหัสผู้ป่วย: ${patient.patientId}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(
+            text = "ชื่อ-นามสกุล: ${detail.prefix}${detail.firstName} ${detail.lastName}",
+            style = MaterialTheme.typography.bodyLarge
+        )
+        Text(
+            text = "รหัสผู้ป่วย: ${detail.patientId}",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            text = "เบอร์โทร: ${detail.telNo}",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        if (!detail.underlyingDisease.isNullOrBlank()) {
+            Text(
+                text = "โรคประจำตัว: ${detail.underlyingDisease}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
         Spacer(modifier = Modifier.height(8.dp))
 
-        // แสดงวันที่ทำแบบประเมิน
         Surface(
             color = MaterialTheme.colorScheme.secondaryContainer,
             shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp)
         ) {
             Text(
-                text = "ประเมินเมื่อ: ${record.createdAt}",
+                text = "วันที่รับวัคซีน: ${detail.shotDate}" +
+                    (detail.vaccineName?.let { " • $it" } ?: "") +
+                    (detail.lotNumber?.let { " • Lot $it" } ?: ""),
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSecondaryContainer
@@ -394,45 +343,39 @@ fun PatientInfoHeader(patient: Patient, record: ScreeningRecord) {
 }
 
 @Composable
-fun QuestionAnswerItem(question: ScreeningQuestion, answer: ScreeningAnswer?) {
+fun QuestionAnswerItem(answer: RegistrationAnswerDetail) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp)) // แก้ไขตรงนี้: เรียกใช้ clip() ตรงๆ
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)) // แก้ไขตรงนี้: เรียกใช้ background() ตรงๆ
+            .clip(RoundedCornerShape(8.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
             .padding(12.dp)
     ) {
-        // ตัวคำถาม
         Text(
-            text = "${question.displayOrder}. ${question.questionText}",
+            text = answer.questionText,
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.SemiBold
         )
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // การแสดงผลคำตอบ
-        if (answer == null) {
-            Text(text = "ยังไม่ได้ระบุคำตอบ", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
-        } else {
-            val answerText = if (answer.answer) "มี / ใช่" else "ไม่มี / ไม่ใช่"
-            val answerColor = if (answer.answer) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+        val answerText = if (answer.answer) "มี / ใช่" else "ไม่มี / ไม่ใช่"
+        val answerColor = if (answer.answer) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
 
-            Row(verticalAlignment = Alignment.Top) {
+        Row(verticalAlignment = Alignment.Top) {
+            Text(
+                text = answerText,
+                color = answerColor,
+                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.bodyMedium
+            )
+
+            if (!answer.remark.isNullOrBlank()) {
                 Text(
-                    text = answerText,
-                    color = answerColor,
-                    fontWeight = FontWeight.Bold,
-                    style = MaterialTheme.typography.bodyMedium
+                    text = " — ระบุ: ${answer.remark}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
-
-                if (!answer.remark.isNullOrBlank()) {
-                    Text(
-                        text = " — ระบุ: ${answer.remark}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                }
             }
         }
     }
