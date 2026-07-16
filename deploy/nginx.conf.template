@@ -15,12 +15,13 @@ server {
     root /usr/share/nginx/html;
     index index.html;
 
-    # A bare `types {}` block replaces nginx's whole MIME table instead of
-    # extending it — that stripped text/html from index.html and made the
-    # browser download it instead of rendering it. Include the defaults first.
-    types {
-        include /etc/nginx/mime.types;
-        application/wasm wasm;
+    # Don't touch nginx's global types table at all: a bare `types {}` block
+    # replaces the whole table (broke text/html on index.html earlier), and
+    # `include /etc/nginx/mime.types;` inside another `types {}` block is a
+    # syntax error, since that file itself starts with its own `types { }`
+    # wrapper. Set the MIME type narrowly, only for .wasm requests, instead.
+    location ~* \.wasm$ {
+        default_type application/wasm;
     }
 
     # Strips the /vaccine-api/ prefix and forwards the rest as-is, e.g.
