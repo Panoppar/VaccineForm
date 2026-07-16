@@ -1,5 +1,16 @@
 package kmch.vaccine.form.util
 
+data class PrintPatientInfo(
+    val firstName: String,
+    val lastName: String,
+    val idCard: String?,
+    val passportId: String?,
+    val underlyingDisease: String?,
+    val address: String?,
+    val telNo: String,
+    val shotDate: String
+)
+
 data class PrintAnswerItem(
     val order: Int,
     val question: String,
@@ -8,8 +19,6 @@ data class PrintAnswerItem(
 )
 
 expect fun printVaccineDocument(
-    patientId: String,
-    fullName: String,
-    date: String,
+    patient: PrintPatientInfo,
     answers: List<PrintAnswerItem>
 )

@@ -6,6 +6,18 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.Serializable
 
 @Serializable
+private data class JsPatientInfo(
+    val firstName: String,
+    val lastName: String,
+    val idCard: String?,
+    val passportId: String?,
+    val underlyingDisease: String?,
+    val address: String?,
+    val telNo: String,
+    val shotDate: String
+)
+
+@Serializable
 private data class JsAnswerItem(
     val order: Int,
     val question: String,
@@ -14,21 +26,28 @@ private data class JsAnswerItem(
 )
 
 actual fun printVaccineDocument(
-    patientId: String,
-    fullName: String,
-    date: String,
+    patient: PrintPatientInfo,
     answers: List<PrintAnswerItem>
 ) {
-    val jsAnswers = answers.map {
-        JsAnswerItem(it.order, it.question, it.isYes, it.remark)
-    }
+    val jsPatient = JsPatientInfo(
+        firstName = patient.firstName,
+        lastName = patient.lastName,
+        idCard = patient.idCard,
+        passportId = patient.passportId,
+        underlyingDisease = patient.underlyingDisease,
+        address = patient.address,
+        telNo = patient.telNo,
+        shotDate = patient.shotDate
+    )
+    val jsAnswers = answers.map { JsAnswerItem(it.order, it.question, it.isYes, it.remark) }
 
-    val jsonString = Json.encodeToString(jsAnswers)
+    val patientJson = Json.encodeToString(jsPatient)
+    val answersJson = Json.encodeToString(jsAnswers)
     val dynamicWindow = window.asDynamic()
 
     try {
         // เรียกฟังก์ชันที่อยู่ใน printHelper.js
-        dynamicWindow.generateAndPrintVaccineForm(patientId, fullName, date, jsonString)
+        dynamicWindow.generateAndPrintVaccineForm(patientJson, answersJson)
     } catch (e: Exception) {
         console.error("พิมพ์ไม่สำเร็จ: ${e.message}")
     }

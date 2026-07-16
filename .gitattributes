@@ -1,0 +1,10 @@
+# Shell scripts must stay LF — CRLF breaks their #!/bin/sh shebang under Linux
+# (this bit the Docker build earlier: gradlew wouldn't run at all).
+gradlew text eol=lf
+*.sh text eol=lf
+
+# Binary / vendored files: never rewrite line endings, keep byte-exact.
+*.pdf -text
+*.ttf -text
+*.wasm -text
+*.min.js -text

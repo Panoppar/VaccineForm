@@ -13,6 +13,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kmch.vaccine.form.util.PrintAnswerItem
+import kmch.vaccine.form.util.PrintPatientInfo
 import kmch.vaccine.form.util.printVaccineDocument
 import kotlinx.coroutines.delay
 
@@ -274,9 +275,16 @@ fun AdminDetailView(
                                 )
                             }
                             printVaccineDocument(
-                                patientId = snapshot.patientId.toString(),
-                                fullName = "${snapshot.prefix}${snapshot.firstName} ${snapshot.lastName}",
-                                date = snapshot.shotDate.toString(),
+                                patient = PrintPatientInfo(
+                                    firstName = snapshot.firstName,
+                                    lastName = snapshot.lastName,
+                                    idCard = snapshot.idCard,
+                                    passportId = snapshot.passportId,
+                                    underlyingDisease = snapshot.underlyingDisease,
+                                    address = snapshot.address,
+                                    telNo = snapshot.telNo,
+                                    shotDate = snapshot.shotDate.toString()
+                                ),
                                 answers = printItems
                             )
                         }
