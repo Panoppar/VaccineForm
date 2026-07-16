@@ -1,0 +1,25 @@
+# Use this on the KMCH server, where the shared reverse proxy + Go backend
+# already run under the "hospitalkmch" docker-compose project. This joins
+# the same Docker network so all three can reach each other by container
+# name instead of IP:port.
+#
+#   docker compose -f docker-compose.server.yml up -d --build
+#
+# Ask whoever manages the shared reverse proxy to add:
+#   location /vaccine/ {
+#       proxy_pass http://vaccineform_frontend:80/;
+#   }
+services:
+  frontend:
+    build: .
+    container_name: vaccineform_frontend
+    ports:
+      - "${FRONTEND_PORT:-8090}:80"
+    environment:
+      BACKEND_HOST: ${BACKEND_HOST:-vaccinework_app:8081}
+    networks:
+      - hospitalkmch_default
+
+networks:
+  hospitalkmch_default:
+    external: true
