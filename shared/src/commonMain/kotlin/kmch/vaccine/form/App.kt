@@ -1,63 +1,63 @@
 package kmch.vaccine.form
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.safeContentPadding
-import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.Typography
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.text.font.FontFamily
-import org.jetbrains.compose.resources.painterResource
-
-import org.jetbrains.compose.resources.Font
-import vaccineform.shared.generated.resources.Res
-import vaccineform.shared.generated.resources.compose_multiplatform
-import vaccineform.shared.generated.resources.notosansthai_variablefont_wdth
+import androidx.compose.ui.unit.dp
+import kmch.vaccine.form.theme.AppTheme
+import kotlinx.browser.window
+import org.w3c.dom.events.Event
 
 @Composable
-@Preview
 fun App() {
-    val thaiFontFamily = FontFamily(
-        Font(Res.font.notosansthai_variablefont_wdth)
-    )
+    // ดึงค่า Hash จาก URL ปัจจุบัน (เช่น #/vaccine/form)
+    var currentRoute by remember { mutableStateOf(window.location.hash) }
 
-    val customTypography = Typography().apply {
-        // คุณสามารถตั้งค่า copy ให้กับ TextStyles ต่างๆ ให้ใช้ฟอนต์นี้ได้
-        // หรือวิธีที่ง่ายที่สุดตอนเริ่มต้นคือการใส่ default font family ไปเลย
+    // คอยดักจับว่าผู้ใช้มีการพิมพ์เปลี่ยน URL ใน Address Bar หรือไม่
+    DisposableEffect(Unit) {
+        val onHashChange: (Event) -> Unit = {
+            currentRoute = window.location.hash
+        }
+        window.addEventListener("hashchange", onHashChange)
+        onDispose {
+            window.removeEventListener("hashchange", onHashChange)
+        }
     }
 
-    val thaiTypography = Typography(
-        displayLarge = Typography().displayLarge.copy(fontFamily = thaiFontFamily),
-        displayMedium = Typography().displayMedium.copy(fontFamily = thaiFontFamily),
-        displaySmall = Typography().displaySmall.copy(fontFamily = thaiFontFamily),
-        headlineLarge = Typography().headlineLarge.copy(fontFamily = thaiFontFamily),
-        headlineMedium = Typography().headlineMedium.copy(fontFamily = thaiFontFamily),
-        headlineSmall = Typography().headlineSmall.copy(fontFamily = thaiFontFamily),
-        titleLarge = Typography().titleLarge.copy(fontFamily = thaiFontFamily),
-        titleMedium = Typography().titleMedium.copy(fontFamily = thaiFontFamily),
-        titleSmall = Typography().titleSmall.copy(fontFamily = thaiFontFamily),
-        bodyLarge = Typography().bodyLarge.copy(fontFamily = thaiFontFamily),
-        bodyMedium = Typography().bodyMedium.copy(fontFamily = thaiFontFamily),
-        bodySmall = Typography().bodySmall.copy(fontFamily = thaiFontFamily),
-        labelLarge = Typography().labelLarge.copy(fontFamily = thaiFontFamily),
-        labelMedium = Typography().labelMedium.copy(fontFamily = thaiFontFamily),
-        labelSmall = Typography().labelSmall.copy(fontFamily = thaiFontFamily)
-    )
+    AppTheme {
+        Surface(modifier = Modifier.fillMaxSize()) {
+            when {
+                // หาก URL คือ http://localhost:8080/#/vaccine/admin
+                currentRoute.contains("#/vaccine/admin") -> AdminDashBoardScreen(
+                    onNavigateBack = {
+                        window.location.hash = "#/vaccine/admin"
+                    }
+                )
 
-    MaterialTheme(
-        typography = thaiTypography
-    ) {
-        VaccineScreeningForm()
+                // หาก URL คือ http://localhost:8080/#/vaccine/form
+                // เรียกใช้งานแบบวงเล็บเปล่าๆ ตรงกับที่ประกาศไว้ในไฟล์ VaccineScreeningForm.kt
+                currentRoute.contains("#/vaccine/form") -> VaccineScreeningForm()
+
+                // หากพิมพ์ URL ผิด หรือเข้ามาที่หน้าแรกตรงๆ โดยไม่มี Hash
+                else -> {
+                    Column(
+                        modifier = Modifier.fillMaxSize().padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            text = "404 Not Found",
+                            color = MaterialTheme.colorScheme.error
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "กรุณาระบุ URL Path ให้ถูกต้องเพื่อเข้าถึงระบบ",
+                        )
+                    }
+                }
+            }
+        }
     }
 }

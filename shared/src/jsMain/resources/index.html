@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <title>KMCH Vaccine Admin</title>
+
+    <script>
+        window.generateAndPrintVaccineForm = function(patientId, fullName, date, answersJson) {
+            console.log("ได้รับคำสั่งพิมพ์จาก Wasm/Kotlin!"); // ใส่ log ไว้เช็ค
+
+            try {
+                const answers = JSON.parse(answersJson);
+                const printWindow = window.open('', '_blank', 'width=800,height=600');
+
+                if (!printWindow) {
+                    alert("กรุณาอนุญาต Pop-ups จากบราวเซอร์เพื่อพิมพ์เอกสาร");
+                    return;
+                }
+
+                let htmlContent = `
+                <!DOCTYPE html>
+                <html lang="th">
+                <head>
+                    <meta charset="UTF-8">
+                    <title>แบบประเมิน - ${patientId}</title>
+                    <style>
+                        body { font-family: 'Sarabun', sans-serif; padding: 40px; color: #333; }
+                        h1 { text-align: center; font-size: 24px; margin-bottom: 30px; }
+                        .header-info { margin-bottom: 20px; font-size: 16px; border-bottom: 2px solid #000; padding-bottom: 10px; }
+                        .question-row { margin-bottom: 15px; font-size: 14px; }
+                        .question-text { font-weight: bold; }
+                        .answer-text { margin-left: 20px; color: #0056b3; }
+                        @media print {
+                            @page { margin: 1cm; size: A4; }
+                            body { padding: 0; }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <h1>ใบประเมินคัดกรองวัคซีน</h1>
+                    <div class="header-info">
+                        <p><strong>รหัส:</strong> ${patientId} <strong>ชื่อ:</strong> ${fullName} <strong>วันที่:</strong> ${date}</p>
+                    </div>
+                    <div class="questions-section">
+                `;
+
+                answers.forEach(item => {
+                    let answerString = item.isYes ? "มี / ใช่" : "ไม่มี / ไม่ใช่";
+                    let remarkString = item.remark ? ` (ระบุ: ${item.remark})` : "";
+                    htmlContent += `
+                        <div class="question-row">
+                            <div class="question-text">${item.order}. ${item.question}</div>
+                            <div class="answer-text">- คำตอบ: <strong>${answerString}</strong> ${remarkString}</div>
+                        </div>
+                    `;
+                });
+
+                htmlContent += `
+                    </div>
+                    <script>
+                        window.onload = function() { window.print(); };
+    </script>
+    </head>
+</html>
+`;
+
+printWindow.document.open();
+printWindow.document.write(htmlContent);
+printWindow.document.close();
+
+} catch (error) {
+console.error("เกิดข้อผิดพลาดฝั่ง JavaScript:", error);
+}
+};
+</script>
+
+<script type="application/javascript" src="webApp.js"></script>
+</head>
+<body>
+<div id="root"></div>
+</body>
+</html>

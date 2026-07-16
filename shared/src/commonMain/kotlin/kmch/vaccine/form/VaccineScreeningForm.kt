@@ -1,253 +1,327 @@
 package kmch.vaccine.form
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.foundation.text.ClickableText
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.compose.ui.text.font.FontWeight
+import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun VaccineScreeningForm() {
+    val apiService = remember { VaccineApiService() }
+    val coroutineScope = rememberCoroutineScope()
+
+    // 1. State สำหรับเก็บคำถามจาก API
+    var questionList by remember { mutableStateOf<List<ScreeningQuestion>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
+
+    var isSubmitted by remember { mutableStateOf(false) }
+    var acceptedTerms by remember { mutableStateOf(false) }
+    var emailInput by remember { mutableStateOf("") }
+
+    val answers = remember { mutableStateMapOf<Int, Boolean>() }
+    val remarks = remember { mutableStateMapOf<Int, String>() }
     val scrollState = rememberScrollState()
+    val uriHandler = LocalUriHandler.current
 
-    // --- State Variables ---
-    // 1. ข้อมูลส่วนตัว
-    var prefix by remember { mutableStateOf("") }
-    var firstName by remember { mutableStateOf("") }
-    var lastName by remember { mutableStateOf("") }
-    var sex by remember { mutableStateOf("") }
-    var idCard by remember { mutableStateOf("") }
-
-    // 2. โรคประจำตัว
-    val diseasesList = listOf("เบาหวาน", "ความดันโลหิตสูง", "โรคเกาต์", "ไตวายเรื้อรัง", "กล้ามเนื้อหัวใจขาดเลือด", "หลอดเลือดสมอง", "ถุงลมโป่งพอง", "โรคทางจิตเวช", "อื่นๆ")
-    var selectedDiseases by remember { mutableStateOf(setOf<String>()) }
-    var otherDiseaseText by remember { mutableStateOf("") }
-
-    // 3. ที่อยู่ (อิงตาม Table Address)
-    var houseNo by remember { mutableStateOf("") }
-    var village by remember { mutableStateOf("") }
-    var buildingName by remember { mutableStateOf("") }
-    var alley by remember { mutableStateOf("") }
-    var road by remember { mutableStateOf("") }
-    var subDistrict by remember { mutableStateOf("") }
-    var district by remember { mutableStateOf("") }
-    var province by remember { mutableStateOf("") }
-    var zipCode by remember { mutableStateOf("") }
-
-    // 4. การติดต่อและการรับบริการ
-    var telNo by remember { mutableStateOf("") }
-    var shotDate by remember { mutableStateOf("") }
-
-    // 5. แบบสอบถาม (Questionnaire) - ใช้ Boolean? (null = ยังไม่เลือก, true = ใช่, false = ไม่ใช่)
-    var qEggAllergy by remember { mutableStateOf<Boolean?>(null) }
-    var qFluShotAllergy by remember { mutableStateOf<Boolean?>(null) }
-    var qHasFever by remember { mutableStateOf<Boolean?>(null) }
-    var qAcuteSevenDays by remember { mutableStateOf<Boolean?>(null) }
-    var qDischargeFourteenDays by remember { mutableStateOf<Boolean?>(null) }
-    var qUnderlyingWorsen by remember { mutableStateOf<Boolean?>(null) }
-    var qHighRiskPregnancy by remember { mutableStateOf<Boolean?>(null) }
-    var isUnderstand by remember { mutableStateOf(false) } // เช็คบ็อกซ์รับทราบข้อมูล
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(scrollState)
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        Text("แบบฟอร์มคัดกรองผู้มารับบริการวัคซีนไข้หวัดใหญ่", fontSize = 20.sp, fontWeight = FontWeight.Bold)
-
-        // 1. คำนำหน้า (Single Select Chip)
-        Text("คำนำหน้าชื่อ", fontWeight = FontWeight.Bold)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf("นาย", "นาง", "นางสาว").forEach { option ->
-                FilterChip(
-                    selected = prefix == option,
-                    onClick = { prefix = option },
-                    label = { Text(option) }
-                )
-            }
+    // 2. ดึงคำถามเมื่อโหลดหน้าฟอร์ม
+    LaunchedEffect(Unit) {
+        try {
+            questionList =
+                apiService.getQuestions().filter { it.active }.sortedBy { it.displayOrder }
+        } catch (e: Exception) {
+            println("Error fetching questions: ${e.message}")
+        } finally {
+            isLoading = false
         }
-
-        // 2 & 3. ชื่อ - นามสกุล
-        OutlinedTextField(
-            value = firstName,
-            onValueChange = { firstName = it },
-            label = { Text("ชื่อ") },
-            modifier = Modifier.fillMaxWidth()
-        )
-        OutlinedTextField(
-            value = lastName,
-            onValueChange = { lastName = it },
-            label = { Text("นามสกุล") },
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        // 4. เพศแต่กำเนิด (Single Select Chip)
-        Text("เพศแต่กำเนิด", fontWeight = FontWeight.Bold)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf("ชาย", "หญิง").forEach { option ->
-                FilterChip(
-                    selected = sex == option,
-                    onClick = { sex = option },
-                    label = { Text(option) }
-                )
-            }
-        }
-
-        // 5. เลขบัตรประชาชน
-        OutlinedTextField(
-            value = idCard,
-            onValueChange = { if (it.length <= 13) idCard = it },
-            label = { Text("เลขประจำตัวประชาชน 13 หลัก") },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Divider(modifier = Modifier.padding(vertical = 8.dp))
-
-        // 6. โรคประจำตัว (Multi Select Chip)
-        Text("โรคประจำตัว (เลือกได้มากกว่า 1 ข้อ)", fontWeight = FontWeight.Bold)
-        FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            diseasesList.forEach { disease ->
-                FilterChip(
-                    selected = selectedDiseases.contains(disease),
-                    onClick = {
-                        val current = selectedDiseases.toMutableSet()
-                        if (current.contains(disease)) current.remove(disease)
-                        else current.add(disease)
-                        selectedDiseases = current
-                    },
-                    label = { Text(disease) }
-                )
-            }
-        }
-        // เงื่อนไข: ถ้าเลือกอื่นๆ ให้แสดงช่องกรอก
-        if (selectedDiseases.contains("อื่นๆ")) {
-            OutlinedTextField(
-                value = otherDiseaseText,
-                onValueChange = { otherDiseaseText = it },
-                label = { Text("โปรดระบุโรคประจำตัวอื่นๆ") },
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
-
-        Divider(modifier = Modifier.padding(vertical = 8.dp))
-
-        // 7. ที่อยู่ (Address Fields)
-        Text("ข้อมูลที่อยู่", fontWeight = FontWeight.Bold)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedTextField(value = houseNo, onValueChange = { houseNo = it }, label = { Text("บ้านเลขที่") }, modifier = Modifier.weight(1f))
-            OutlinedTextField(value = village, onValueChange = { village = it }, label = { Text("หมู่ที่") }, modifier = Modifier.weight(1f))
-        }
-        OutlinedTextField(value = buildingName, onValueChange = { buildingName = it }, label = { Text("หมู่บ้าน/อาคาร") }, modifier = Modifier.fillMaxWidth())
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedTextField(value = alley, onValueChange = { alley = it }, label = { Text("ตรอก/ซอย") }, modifier = Modifier.weight(1f))
-            OutlinedTextField(value = road, onValueChange = { road = it }, label = { Text("ถนน") }, modifier = Modifier.weight(1f))
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedTextField(value = subDistrict, onValueChange = { subDistrict = it }, label = { Text("ตำบล/แขวง") }, modifier = Modifier.weight(1f))
-            OutlinedTextField(value = district, onValueChange = { district = it }, label = { Text("อำเภอ/เขต") }, modifier = Modifier.weight(1f))
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedTextField(value = province, onValueChange = { province = it }, label = { Text("จังหวัด") }, modifier = Modifier.weight(1f))
-            OutlinedTextField(value = zipCode, onValueChange = { zipCode = it }, label = { Text("รหัสไปรษณีย์") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.weight(1f))
-        }
-
-        Divider(modifier = Modifier.padding(vertical = 8.dp))
-
-        // 8. เบอร์โทรศัพท์ & 9. วันที่รับวัคซีน
-        OutlinedTextField(
-            value = telNo,
-            onValueChange = { telNo = it },
-            label = { Text("เบอร์โทรศัพท์") },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-            modifier = Modifier.fillMaxWidth()
-        )
-        OutlinedTextField(
-            value = shotDate,
-            onValueChange = { shotDate = it },
-            label = { Text("วันที่รับวัคซีน (เช่น DD/MM/YYYY)") },
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Divider(modifier = Modifier.padding(vertical = 8.dp))
-
-        // 10. แบบสอบถามคัดกรอง (Questionnaire)
-        Text("แบบสอบถามคัดกรองก่อนให้วัคซีน", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-
-        QuestionRow("มีประวัติแพ้ไข่ไก่อย่างรุนแรง", qEggAllergy) { qEggAllergy = it }
-        QuestionRow("เคยแพ้วัคซีนไข้หวัดใหญ่ หรือแพ้สารประกอบอื่นๆ ในวัคซีนอย่างรุนแรง", qFluShotAllergy) { qFluShotAllergy = it }
-        QuestionRow("กำลังมีไข้ หรือกำลังเจ็บป่วยเฉียบพลัน", qHasFever) { qHasFever = it }
-        QuestionRow("เพิ่งหายจากการเจ็บป่วยเฉียบพลันมาไม่เกิน 7 วัน", qAcuteSevenDays) { qAcuteSevenDays = it }
-        QuestionRow("เพิ่งมานอนรักษาตัวและออกจากโรงพยาบาล ไม่เกิน 14 วัน", qDischargeFourteenDays) { qDischargeFourteenDays = it }
-        QuestionRow("ยังมีโรคประจำตัวที่อาการกำเริบ เช่น ใจสั่น เจ็บแน่นหน้าอก หรือยังควบคุมอาการไม่ได้", qUnderlyingWorsen) { qUnderlyingWorsen = it }
-        QuestionRow("ขณะตั้งครรภ์มีภาวะครรภ์เสี่ยงสูง (หากประสงค์รับวัคซีนให้ปรึกษาแพทย์)", qHighRiskPregnancy) { qHighRiskPregnancy = it }
-
-        // Checkbox รับทราบข้อมูล
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Checkbox(checked = isUnderstand, onCheckedChange = { isUnderstand = it })
-            Text("ท่านได้รับข้อมูลเกี่ยวกับวัคซีนไข้หวัดใหญ่และได้ทำความเข้าใจแล้ว", fontWeight = FontWeight.Bold)
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // ปุ่ม Submit & API TODO
-        Button(
-            onClick = {
-                // TODO: 1. Validate ข้อมูลก่อนส่ง (เช่น เลขบัตร 13 หลัก, กรอกข้อมูลครบไหม)
-                // TODO: 2. รวบรวม State ทั้งหมดแปลงเป็น JSON Object
-                /*
-                 val requestBody = PatientVaccineRequest(
-                     patientInfo = PatientInfo(idCard, prefix, firstName, lastName, sex, telNo),
-                     address = Address(idCard, houseNo, village, buildingName, alley, road, subDistrict, district, province, zipCode),
-                     diseases = selectedDiseases.map { ... }, // จัดการรวมคำว่า "อื่นๆ: $otherDiseaseText" ด้วย
-                     fluShotForm = FluShotScreenForm(idCard, qEggAllergy, qFluShotAllergy, ... , isUnderstand, shotDate)
-                 )
-                */
-                // TODO: 3. ยิง API (POST) ไปยัง Backend Golang ผ่าน Ktor Client หรือไลบรารี Network ที่คุณใช้
-                println("Submitting Data... (Call Golang API here)")
-            },
-            modifier = Modifier.fillMaxWidth().height(50.dp)
-        ) {
-            Text("บันทึกข้อมูล", fontSize = 16.sp)
-        }
-
-        Spacer(modifier = Modifier.height(32.dp)) // เผื่อที่ว่างด้านล่างสำหรับจอโทรศัพท์
     }
-}
 
-// Helper Composable สำหรับสร้างแถวคำถาม ใช่/ไม่ใช่
-@Composable
-fun QuestionRow(question: String, selectedAnswer: Boolean?, onAnswerSelected: (Boolean) -> Unit) {
-    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-        Text(text = question, fontSize = 14.sp)
-        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                RadioButton(
-                    selected = selectedAnswer == true,
-                    onClick = { onAnswerSelected(true) }
-                )
-                Text("ใช่")
+    // 3. เปลี่ยนจาก mockQuestions เป็น questionList
+    val isAllQuestionsAnswered = questionList.all { question ->
+        val isTextQuestion = question.questionText.startsWith("[Text]")
+        if (isTextQuestion) {
+            !remarks[question.questionId].isNullOrBlank()
+        } else {
+            answers.containsKey(question.questionId)
+        }
+    }
+
+    if (!isSubmitted) {
+        if (isLoading) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
             }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                RadioButton(
-                    selected = selectedAnswer == false,
-                    onClick = { onAnswerSelected(false) }
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(24.dp)
+                    .verticalScroll(scrollState)
+            ) {
+                Text(
+                    text = "แบบสอบถามผู้มารับบริการ วัคซีนไข้หวัดใหญ่ตามฤดูกาล",
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.primary
                 )
-                Text("ไม่ใช่")
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "กรุณาทำเครื่องหมายตามความเป็นจริงเพื่อเจ้าหน้าที่จะได้พิจารณาว่าท่านสามารถฉีดวัคซีนได้หรือไม่",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Spacer(modifier = Modifier.height(24.dp))
+
+                if (questionList.isEmpty()) {
+                    // กรณีโหลดเสร็จแล้วแต่ไม่มีข้อมูลคำถามกลับมาเลยจาก API
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 48.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "ไม่พบข้อมูลแบบคัดกรองในขณะนี้ กรุณาติดต่อเจ้าหน้าที่",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.outline
+                        )
+                    }
+                } else {
+                    // วนลูปสร้างคำถามจากข้อมูลจริงที่ดึงมาจาก API (ซึ่งเรียงลำดับมาแล้วตั้งแต่ขั้นตอนโหลดข้อมูล)
+                    questionList.forEach { question ->
+                        // 1. จัดการ ID ให้ปลอดภัย ป้องกันกรณี Backend ส่งค่า null มา
+                        val qId = question.questionId ?: return@forEach // หรือใช้ ?: 0 ตามความเหมาะสมของโมเดล
+
+                        // 2. ตรวจสอบประเภทคำถามอย่างปลอดภัย
+                        val rawText = question.questionText ?: ""
+                        val isTextQuestion = rawText.startsWith("[Text]")
+
+                        // ลบคำว่า [Text] ออกเพื่อแสดงผลได้อย่างสวยงาม
+                        val displayText = if (isTextQuestion) {
+                            rawText.removePrefix("[Text]").trim()
+                        } else {
+                            rawText
+                        }
+
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text(displayText, style = MaterialTheme.typography.bodyLarge)
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                if (isTextQuestion) {
+                                    // ==========================================
+                                    // กรณีที่ 1: เป็นคำถามแบบ [Text] (ช่องพิมพ์คำตอบ)
+                                    // ==========================================
+                                    OutlinedTextField(
+                                        value = remarks[qId] ?: "",
+                                        onValueChange = { newValue ->
+                                            remarks[qId] = newValue // นำ 'as Int' ออกแล้ว เพราะใช้ qId ที่ปลอดภัยแทน
+                                        },
+                                        label = { Text("ระบุคำตอบของคุณ") },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        singleLine = false,
+                                        maxLines = 3
+                                    )
+                                } else {
+                                    // ==========================================
+                                    // กรณีที่ 2: เป็นคำถามปกติ (ตัวเลือก ใช่ / ไม่ใช่)
+                                    // ==========================================
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        RadioButton(
+                                            selected = answers[qId] == true,
+                                            onClick = {
+                                                answers[qId] = true
+                                            }
+                                        )
+                                        Text("มี / ใช่")
+                                        Spacer(modifier = Modifier.width(24.dp))
+
+                                        RadioButton(
+                                            selected = answers[qId] == false,
+                                            onClick = {
+                                                answers[qId] = false
+                                                // เคลียร์ค่า remark เมื่อผู้ใช้เปลี่ยนใจตอบว่า "ไม่ใช่"
+                                                remarks.remove(qId)
+                                            }
+                                        )
+                                        Text("ไม่มี / ไม่ใช่")
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+                HorizontalDivider()
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Row(
+                    verticalAlignment = Alignment.Top, // ปรับให้ Checkbox อยู่ขนานกับบรรทัดแรกของข้อความ
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Checkbox(
+                        checked = acceptedTerms,
+                        onCheckedChange = { acceptedTerms = it },
+                        // เพิ่ม padding ให้ตัว Checkbox ไม่ชิดข้อความเกินไป
+                        modifier = Modifier.padding(end = 8.dp)
+                    )
+
+                    // สร้าง AnnotatedString เพื่อประกอบข้อความและฝัง Link
+                    val pdpaAnnotatedString = buildAnnotatedString {
+                        append("โรงพยาบาลพระจอมเกล้าเจ้าคุณทหาร สถาบันเทคโนโลยีพระจอมเกล้าเจ้าคุณทหารลาดกระบัง (KMITL) มีการเก็บรวบรวม ใช้ และเปิดเผยข้อมูลส่วนบุคคลของท่าน ประกอบด้วย ชื่อ นามสกุล อีเมล เลขบัตรประจำตัวประชาชน อายุ หมายเลขโทรศัพท์ คณะ ข้อมูลสุขภาพ พฤติกรรม และสุขภาวะแวดล้อม เพื่อดำเนินการ ประสานงาน รวมถึงติดต่อกรณีที่มีอันจำเป็นภายหลังการตรวจสุขภาพ ในโครงการตรวจสุขภาพนักศึกษา ประจำปีงบประมาณ 2569 โดยใช้ “ฐานสัญญาและฐานความจำเป็นเพื่อประโยชน์โดยชอบด้วยกฎหมาย”\n\n")
+                        append("ทางโรงพยาบาลยืนยันว่าข้อมูลส่วนบุคคลของท่านจะถูกเก็บเป็นความลับ และไม่มีการเปิดเผยโดยปราศจากความยินยอมของท่าน เว้นแต่เป็นการเปิดเผยตามที่กฎหมายกำหนด หรือตามหน้าที่ หรือเมื่อมีข้อบ่งชี้และความจำเป็นในการวินิจฉัย รักษาโรคและฟื้นฟูสภาพของข้าพเจ้า ซึ่งกรณีที่ตรวจพบความผิดปกติ ทางโรงพยาบาลจะมีการแจ้งผลให้ท่านทราบ เพื่อเป็นการติดตามและดูแลต่อไป\n\n")
+                        append("หากมีข้อสงสัยเกี่ยวกับการคุ้มครองข้อมูลส่วนบุคคล สามารถสืบค้นข้อมูลเพิ่มเติมและช่องทางติดต่อได้ที่เว็บไซต์ ")
+
+                        // เริ่มสร้าง Tag URL ให้กับข้อความส่วนนี้
+                        pushStringAnnotation(
+                            tag = "URL",
+                            annotation = "https://pdpa.kmitl.ac.th"
+                        )
+                        // ตกแต่งข้อความส่วนที่เป็น Link ให้เป็นสี Primary และมีเส้นใต้
+                        withStyle(
+                            style = SpanStyle(
+                                color = MaterialTheme.colorScheme.primary,
+                                textDecoration = TextDecoration.Underline
+                            )
+                        ) {
+                            append("pdpa.kmitl.ac.th")
+                        }
+                        pop() // ปิด Tag
+                    }
+
+                    // ใช้ ClickableText แทน Text ธรรมดาเพื่อให้รับ Event การคลิกได้
+                    ClickableText(
+                        text = pdpaAnnotatedString,
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            color = MaterialTheme.colorScheme.onSurface // บังคับสีพื้นฐานของข้อความให้กลืนไปกับ Theme ปัจจุบัน
+                        ),
+                        modifier = Modifier.padding(top = 12.dp), // ดันข้อความลงมานิดหน่อยให้ Center กับกล่อง Checkbox แถวแรก
+                        onClick = { offset ->
+                            // ตรวจสอบว่าจุดที่ผู้ใช้กดตรงกับข้อความที่แนบ tag "URL" ไว้หรือไม่
+                            pdpaAnnotatedString.getStringAnnotations(
+                                tag = "URL",
+                                start = offset,
+                                end = offset
+                            )
+                                .firstOrNull()?.let { annotation ->
+                                    // ถ้าใช่ ให้ใช้ uriHandler สั่งเปิด Link ใน Browser
+                                    uriHandler.openUri(annotation.item)
+                                }
+                        }
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Button(
+                    onClick = {
+                        coroutineScope.launch {
+                            // 1. แปลง Map ของคำตอบและข้อความ ให้กลายเป็น List<ScreeningAnswerRequest>
+                            val answerList = questionList.map { question ->
+                                val qId = question.questionId ?: 0
+                                val isTextQuestion = question.questionText.startsWith("[Text]")
+
+                                ScreeningAnswerRequest(
+                                    questionId = qId,
+                                    // ถ้าเป็นคำถาม Text ปกติจะไม่มี Yes/No ให้บังคับเป็น false ไว้ก่อน (หรือตามที่ตกลงกับ Backend)
+                                    // ถ้าเป็นคำถามปกติ ให้ดึงค่าจาก Map answers มาใช้ (ถ้าไม่มีค่า default เป็น false)
+                                    answer = if (isTextQuestion) false else (answers[qId] == true),
+
+                                    // ดึงข้อความจาก Map remarks (ถ้าไม่ได้พิมพ์จะเป็น null)
+                                    remark = remarks[qId]
+                                )
+                            }
+
+                            // 2. ประกอบร่างเป็น Request ก้อนใหญ่
+                            val requestData = ScreeningSubmissionRequest(
+                                patientId = null, // TODO: ระบุ ID ถ้ามี (ดึงจาก Parameter ของหน้าจอ)
+                                patient = null,   // TODO: ถ้าระบุ ID ไม่ได้ ต้องสร้าง Object Patient ใส่เข้าไป
+                                createdBy = "USER", // TODO: เปลี่ยนเป็นรหัสพนักงานหรือ "SELF"
+                                answers = answerList
+                            )
+
+                            // 3. ยิง API ส่งให้ Golang Backend
+                            try {
+                                // เรียกใช้ API ที่เราเปิดใช้งานไว้
+                                val isSuccess = apiService.submitScreeningForm(requestData)
+
+                                if (isSuccess) {
+                                    println("Data submitted successfully!")
+                                    isSubmitted = true // เปลี่ยน State เพื่อแสดงหน้า Success
+                                } else {
+                                    println("Failed to submit data. API returned error status.")
+                                    // คุณสามารถเพิ่ม State สำหรับโชว์ Snackbar หรือ Dialog แจ้งเตือนผู้ใช้ตรงนี้ได้
+                                }
+                            } catch (e: Exception) {
+                                // จัดการ Error กรณี Network พัง หรือ Backend ล่ม
+                                println("Network/Exception Error submitting form: ${e.cause}")
+                            }
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                    enabled = acceptedTerms && isAllQuestionsAnswered
+                ) {
+                    Text("ยืนยันบันทึกข้อมูล")
+                }
             }
+        }
+    } else {
+        // ... (โค้ดส่วนหน้าจอ Success เหมือนเดิม) ...
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(
+                "บันทึกข้อมูลสำเร็จ! ท่านสามารถออกจากหน้านี้ได้",
+                style = MaterialTheme.typography.headlineMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Spacer(modifier = Modifier.height(24.dp))
+
+//            Button(
+//                onClick = { /* TODO: Generate PDF */ },
+//                modifier = Modifier.fillMaxWidth()
+//            ) {
+//                Text("ดาวน์โหลดใบคัดกรอง (PDF)")
+//            }
+//
+//            Spacer(modifier = Modifier.height(32.dp))
+//            HorizontalDivider()
+//            Spacer(modifier = Modifier.height(32.dp))
+//
+//            Text("หรือ ส่งไฟล์คัดกรองเข้าอีเมลเพื่อนำไปปริ้นท์")
+//            Spacer(modifier = Modifier.height(16.dp))
+//            OutlinedTextField(
+//                value = emailInput,
+//                onValueChange = { emailInput = it },
+//                label = { Text("ระบุ Email Address") },
+//                modifier = Modifier.fillMaxWidth()
+//            )
+//            Spacer(modifier = Modifier.height(16.dp))
+//            Button(
+//                onClick = { /* TODO: Send Email API */ },
+//                modifier = Modifier.fillMaxWidth()
+//            ) {
+//                Text("ส่งเข้า Email")
+//            }
         }
     }
 }
