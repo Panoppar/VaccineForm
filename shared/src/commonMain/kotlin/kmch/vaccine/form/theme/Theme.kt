@@ -5,6 +5,24 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
+
+// Material3's ColorScheme has no built-in "success" slot, so this mirrors it as a
+// small side-car for confirmed/completed states (e.g. vaccination recorded).
+data class SuccessColors(
+    val success: Color,
+    val onSuccess: Color,
+    val successContainer: Color,
+    val onSuccessContainer: Color
+)
+
+@Composable
+fun successColors(darkTheme: Boolean = isSystemInDarkTheme()): SuccessColors =
+    if (darkTheme) {
+        SuccessColors(SuccessDark, OnSuccessDark, SuccessContainerDark, OnSuccessContainerDark)
+    } else {
+        SuccessColors(SuccessLight, OnSuccessLight, SuccessContainerLight, OnSuccessContainerLight)
+    }
 
 private val LightColorScheme = lightColorScheme(
     primary = PrimaryLight,

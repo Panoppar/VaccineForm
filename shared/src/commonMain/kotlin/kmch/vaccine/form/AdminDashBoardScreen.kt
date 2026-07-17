@@ -21,6 +21,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import kmch.vaccine.form.theme.successColors
 
 @Composable
 fun AdminDashBoardScreen(onNavigateBack: () -> Unit) {
@@ -259,6 +260,8 @@ fun AdminDetailView(
             // State สำหรับสถานะการบันทึกฉีดวัคซีนจริง
             var isSubmittingRecord by remember { mutableStateOf(false) }
             var recordResultMsg by remember { mutableStateOf<String?>(null) }
+            var isVaccinationConfirmed by remember { mutableStateOf(false) }
+            val success = successColors()
 
             LaunchedEffect(patientId) {
                 if (patientId != null) {
@@ -275,7 +278,28 @@ fun AdminDetailView(
                 }
             }
 
-            Text("รายละเอียดแบบคัดกรอง (Patient ID: $patientId)", style = MaterialTheme.typography.headlineSmall)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("รายละเอียดแบบคัดกรอง (Patient ID: $patientId)", style = MaterialTheme.typography.headlineSmall)
+
+                if (isVaccinationConfirmed) {
+                    Surface(
+                        color = success.successContainer,
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text(
+                            text = "ยืนยันการลงทะเบียนเรียบร้อย",
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = success.onSuccessContainer
+                        )
+                    }
+                }
+            }
             Spacer(modifier = Modifier.height(16.dp))
 
             val currentDetail = detail
@@ -299,7 +323,7 @@ fun AdminDetailView(
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         item {
-                            PatientInfoHeader(detail = currentDetail)
+                            PatientInfoHeader(detail = currentDetail, isConfirmed = isVaccinationConfirmed)
                             HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
                             Text(
                                 text = "ประวัติการตอบคำถาม",
@@ -386,6 +410,7 @@ fun AdminDetailView(
                                     )
                                 )
                                 recordResultMsg = "บันทึกการฉีดวัคซีนสำเร็จ! (Lot ID: $lId, เจ้าหน้าที่: $employeeRateId)"
+                                isVaccinationConfirmed = true
                             } catch (e: ApiException) {
                                 recordResultMsg = when (e.statusCode) {
                                     404 -> "ข้อผิดพลาด: ไม่พบผู้ป่วยหรือ Lot ไม่ถูกต้อง"
@@ -409,8 +434,8 @@ fun AdminDetailView(
 }
 
 @Composable
-fun PatientInfoHeader(detail: RegistrationDetail) {
-    // โค้ดเดิม ไม่ต้องแก้ไข
+fun PatientInfoHeader(detail: RegistrationDetail, isConfirmed: Boolean = false) {
+    val success = successColors()
     Column {
         Text(
             text = "ชื่อ-นามสกุล: ${detail.prefix}${detail.firstName} ${detail.lastName}",
@@ -436,16 +461,18 @@ fun PatientInfoHeader(detail: RegistrationDetail) {
         Spacer(modifier = Modifier.height(8.dp))
 
         Surface(
-            color = MaterialTheme.colorScheme.secondaryContainer,
+            color = if (isConfirmed) success.successContainer else MaterialTheme.colorScheme.secondaryContainer,
             shape = RoundedCornerShape(8.dp)
         ) {
             Text(
                 text = "วันที่รับวัคซีน: ${detail.shotDate}" +
                         (detail.vaccineName?.let { " • $it" } ?: "") +
-                        (detail.lotNumber?.let { " • Lot $it" } ?: ""),
+                        (detail.lotNumber?.let { " • Lot $it" } ?: "") +
+                        (if (isConfirmed) " • ยืนยันแล้ว" else ""),
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                 style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSecondaryContainer
+                fontWeight = if (isConfirmed) FontWeight.Bold else FontWeight.Normal,
+                color = if (isConfirmed) success.onSuccessContainer else MaterialTheme.colorScheme.onSecondaryContainer
             )
         }
     }

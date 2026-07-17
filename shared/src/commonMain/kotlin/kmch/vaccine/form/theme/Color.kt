@@ -29,3 +29,14 @@ val OnSecondaryContainerDark = Color(0xFFFFDCC1) // Light orange text
 
 val BackgroundDark = Color(0xFF001324)        // An incredibly deep shade of the TTB Navy (instead of pure gray/black)
 val SurfaceDark = Color(0xFF001324)           // Matches background
+
+// Success (semantic) colors — confirmed/completed states, e.g. vaccination recorded
+val SuccessLight = Color(0xFF2E7D32)
+val OnSuccessLight = Color(0xFFFFFFFF)
+val SuccessContainerLight = Color(0xFFC8E6C9)
+val OnSuccessContainerLight = Color(0xFF0B3D0B)
+
+val SuccessDark = Color(0xFF8FD98F)
+val OnSuccessDark = Color(0xFF0B3D0B)
+val SuccessContainerDark = Color(0xFF1B5E20)
+val OnSuccessContainerDark = Color(0xFFC8E6C9)
