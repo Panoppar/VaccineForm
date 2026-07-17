@@ -124,7 +124,7 @@ fun VaccineScreeningForm() {
     val isPhoneValid = telNo.length == 10
     val isPatientInfoValid = prefix.isNotBlank() && firstName.isNotBlank() && lastName.isNotBlank() &&
             sex != null && patientType != null && isDocumentValid &&
-            parsedAge != null && parsedAge > 0 && isPhoneValid && parsedShotDate != null
+            parsedAge != null && parsedAge > 0 && isPhoneValid && address.isNotBlank() && parsedShotDate != null
 
     if (!isSubmitted) {
         if (isLoading) {
@@ -403,7 +403,7 @@ fun VaccineScreeningForm() {
                 OutlinedTextField(
                     value = address,
                     onValueChange = { address = it },
-                    label = { Text("ที่อยู่ (ถ้ามี)") },
+                    label = { Text("ที่อยู่") },
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(modifier = Modifier.height(12.dp))
