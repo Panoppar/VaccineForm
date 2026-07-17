@@ -16,6 +16,10 @@ import kmch.vaccine.form.util.PrintAnswerItem
 import kmch.vaccine.form.util.PrintPatientInfo
 import kmch.vaccine.form.util.printVaccineDocument
 import kotlinx.coroutines.delay
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 
 @Composable
 fun AdminDashBoardScreen(onNavigateBack: () -> Unit) {
@@ -68,6 +72,7 @@ fun AdminListView(
     val apiService = remember { VaccineApiService() }
     var registrationsList by remember { mutableStateOf<List<RegistrationListItem>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
+    var showAddVaccineDialog by remember { mutableStateOf(false) }
 
     // ดึงรายการจาก GET /api/v1/registrations?q=... ทุกครั้งที่ผู้ใช้พิมพ์ค้นหา (หน่วงเวลาเล็กน้อยกันยิง API รัว)
     LaunchedEffect(searchQuery) {
@@ -82,6 +87,22 @@ fun AdminListView(
         }
     }
 
+    // ส่วนเรียกใช้ Dialog (จะทำงานเมื่อ showAddVaccineDialog เป็น true)
+    if (showAddVaccineDialog) {
+        AddVaccineOrLotDialog(
+            onDismiss = { showAddVaccineDialog = false },
+            onSaveVaccine = { newVaccineName ->
+                // TODO: เรียก API POST /api/v1/vaccines พร้อมพารามิเตอร์ vaccine_name
+                println("บันทึกวัคซีนใหม่: $newVaccineName")
+            },
+            onSaveLot = { refVaccineId, newLotNumber, initialQty ->
+                // TODO: เรียก API POST /api/v1/vaccine-lots พร้อมพารามิเตอร์ vaccine_id, lot_number, initial_quantity
+                // หมายเหตุ: API ควรเซ็ต remaining_quantity = initial_quantity ในฝั่ง Backend
+                println("บันทึกล็อตใหม่: วัคซีน ID $refVaccineId, Lot $newLotNumber, จำนวน $initialQty")
+            }
+        )
+    }
+
     Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
         Text("แดชบอร์ดจัดการคัดกรองวัคซีน", style = MaterialTheme.typography.headlineSmall)
         Spacer(modifier = Modifier.height(16.dp))
@@ -92,16 +113,33 @@ fun AdminListView(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalAlignment = Alignment.CenterVertically // เพื่อให้ Field และ ปุ่ม + อยู่กึ่งกลางตรงกัน
+            ) {
+                // จัดกลุ่ม Field ของ Lot และปุ่ม + เข้าด้วยกัน
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    OutlinedTextField(
+                        value = lotInput,
+                        onValueChange = onLotInputChange,
+                        label = { Text("Lot วัคซีน") },
+                        modifier = Modifier.width(160.dp) // ปรับขนาดลงเล็กน้อยเพื่อให้พอดีกับปุ่ม
+                    )
+                    IconButton(
+                        onClick = { showAddVaccineDialog = true },
+                        modifier = Modifier.padding(start = 4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = "เพิ่มวัคซีนหรือล็อตใหม่",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+
                 OutlinedTextField(
-                    value = lotInput, // ใช้ค่าที่รับมาจาก Parameter
-                    onValueChange = onLotInputChange, // เรียกใช้งาน Lambda เมื่อมีการพิมพ์
-                    label = { Text("Lot วัคซีน") },
-                    modifier = Modifier.width(200.dp)
-                )
-                OutlinedTextField(
-                    value = employeeRateId, // ใช้ค่าที่รับมาจาก Parameter
-                    onValueChange = onEmployeeRateIdChange, // เรียกใช้งาน Lambda เมื่อมีการพิมพ์
+                    value = employeeRateId,
+                    onValueChange = onEmployeeRateIdChange,
                     label = { Text("เลขอัตราเจ้าหน้าที่") },
                     modifier = Modifier.width(200.dp)
                 )
@@ -387,4 +425,117 @@ fun QuestionAnswerItem(answer: RegistrationAnswerDetail) {
             }
         }
     }
+}
+
+enum class AddMode { VACCINE, LOT }
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AddVaccineOrLotDialog(
+    onDismiss: () -> Unit,
+    onSaveVaccine: (vaccineName: String) -> Unit,
+    onSaveLot: (vaccineId: String, lotNumber: String, initialQty: Int) -> Unit
+) {
+    var selectedMode by remember { mutableStateOf(AddMode.VACCINE) }
+
+    // State สำหรับโหมดเพิ่มวัคซีน
+    var vaccineName by remember { mutableStateOf("") }
+
+    // State สำหรับโหมดเพิ่มล็อต (ในระบบจริง vaccineId ควรปรับเป็น Dropdown Menu ที่ดึงข้อมูลจาก API)
+    var vaccineId by remember { mutableStateOf("") }
+    var lotNumber by remember { mutableStateOf("") }
+    var initialQuantity by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(text = "จัดการข้อมูลวัคซีน", style = MaterialTheme.typography.titleLarge) },
+        text = {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                // Radio Buttons สำหรับเลือกประเภทการทำรายการ
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    RadioButton(
+                        selected = selectedMode == AddMode.VACCINE,
+                        onClick = { selectedMode = AddMode.VACCINE }
+                    )
+                    Text("เพิ่มวัคซีนใหม่", style = MaterialTheme.typography.bodyMedium)
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    RadioButton(
+                        selected = selectedMode == AddMode.LOT,
+                        onClick = { selectedMode = AddMode.LOT }
+                    )
+                    Text("เพิ่มล็อตวัคซีน", style = MaterialTheme.typography.bodyMedium)
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+                Divider()
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // สลับ Input Field ตาม State
+                if (selectedMode == AddMode.VACCINE) {
+                    OutlinedTextField(
+                        value = vaccineName,
+                        onValueChange = { vaccineName = it },
+                        label = { Text("ชื่อวัคซีน (Vaccine Name)") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                } else {
+                    OutlinedTextField(
+                        value = vaccineId,
+                        onValueChange = { vaccineId = it },
+                        label = { Text("รหัสอ้างอิงวัคซีน (Vaccine ID)") },
+                        modifier = Modifier.fillMaxWidth(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = lotNumber,
+                        onValueChange = { lotNumber = it },
+                        label = { Text("หมายเลขล็อต (Lot Number)") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = initialQuantity,
+                        onValueChange = { initialQuantity = it },
+                        label = { Text("จำนวนเริ่มต้น (Initial Quantity)") },
+                        modifier = Modifier.fillMaxWidth(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (selectedMode == AddMode.VACCINE) {
+                        onSaveVaccine(vaccineName)
+                    } else {
+                        val qty = initialQuantity.toIntOrNull() ?: 0
+                        onSaveLot(vaccineId, lotNumber, qty)
+                    }
+                    onDismiss()
+                },
+                enabled = if (selectedMode == AddMode.VACCINE) {
+                    vaccineName.isNotBlank()
+                } else {
+                    vaccineId.isNotBlank() && lotNumber.isNotBlank() && initialQuantity.isNotBlank()
+                }
+            ) {
+                Text("บันทึก")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("ยกเลิก")
+            }
+        }
+    )
 }
