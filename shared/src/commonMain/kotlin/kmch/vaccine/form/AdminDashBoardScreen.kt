@@ -389,45 +389,49 @@ fun AdminDetailView(
                     Text("พิมพ์ใบคัดกรอง")
                 }
 
-                Button(
-                    onClick = {
-                        val lId = lotInput.toIntOrNull()
-                        if (lId == null) {
-                            recordResultMsg = "กรุณาระบุ Lot ID (ตัวเลข) ในช่องด้านบนก่อนกดยืนยัน"
-                            return@Button
-                        }
-                        if (patientId == null || detail == null) return@Button
-
-                        coroutineScope.launch {
-                            isSubmittingRecord = true
-                            recordResultMsg = null
-                            try {
-                                apiService.createVaccinationRecord(
-                                    VaccinationRecordRequest(
-                                        patientId = patientId,
-                                        lotId = lId,
-                                        shotDate = detail!!.shotDate
-                                    )
-                                )
-                                recordResultMsg = "บันทึกการฉีดวัคซีนสำเร็จ! (Lot ID: $lId, เจ้าหน้าที่: $employeeRateId)"
-                                isVaccinationConfirmed = true
-                            } catch (e: ApiException) {
-                                recordResultMsg = when (e.statusCode) {
-                                    404 -> "ข้อผิดพลาด: ไม่พบผู้ป่วยหรือ Lot ไม่ถูกต้อง"
-                                    409 -> "ข้อผิดพลาด: วัคซีนใน Lot นี้หมดสต็อกแล้ว"
-                                    else -> "ข้อผิดพลาด (${e.statusCode}): ${e.message}"
-                                }
-                            } catch (e: Exception) {
-                                recordResultMsg = "ข้อผิดพลาดเครือข่าย: ${e.message}"
-                            } finally {
-                                isSubmittingRecord = false
-                            }
-                        }
-                    },
-                    enabled = detail != null && !isSubmittingRecord
-                ) {
-                    Text(if (isSubmittingRecord) "กำลังบันทึก..." else "ยืนยันได้รับวัคซีนจริง")
-                }
+                // ปิดใช้งานชั่วคราว: กดแล้วสร้าง Vaccination_Record แถวใหม่แยกต่างหากจากที่ auto-FIFO
+                // สร้างไว้แล้วตอนลงทะเบียน (ดู POST /registrations ที่ return vaccinationId มาแล้ว)
+                // กลายเป็นข้อมูลซ้ำซ้อน/ไม่ถูกต้องใน DB และฝั่ง DB เองก็ไม่มี field บอกสถานะ
+                // "ยืนยันแล้ว" ให้เช็คได้จริง ต้องรอแก้ที่ Backend ก่อนถึงจะเปิดใช้ใหม่
+                // Button(
+                //     onClick = {
+                //         val lId = lotInput.toIntOrNull()
+                //         if (lId == null) {
+                //             recordResultMsg = "กรุณาระบุ Lot ID (ตัวเลข) ในช่องด้านบนก่อนกดยืนยัน"
+                //             return@Button
+                //         }
+                //         if (patientId == null || detail == null) return@Button
+                //
+                //         coroutineScope.launch {
+                //             isSubmittingRecord = true
+                //             recordResultMsg = null
+                //             try {
+                //                 apiService.createVaccinationRecord(
+                //                     VaccinationRecordRequest(
+                //                         patientId = patientId,
+                //                         lotId = lId,
+                //                         shotDate = detail!!.shotDate
+                //                     )
+                //                 )
+                //                 recordResultMsg = "บันทึกการฉีดวัคซีนสำเร็จ! (Lot ID: $lId, เจ้าหน้าที่: $employeeRateId)"
+                //                 isVaccinationConfirmed = true
+                //             } catch (e: ApiException) {
+                //                 recordResultMsg = when (e.statusCode) {
+                //                     404 -> "ข้อผิดพลาด: ไม่พบผู้ป่วยหรือ Lot ไม่ถูกต้อง"
+                //                     409 -> "ข้อผิดพลาด: วัคซีนใน Lot นี้หมดสต็อกแล้ว"
+                //                     else -> "ข้อผิดพลาด (${e.statusCode}): ${e.message}"
+                //                 }
+                //             } catch (e: Exception) {
+                //                 recordResultMsg = "ข้อผิดพลาดเครือข่าย: ${e.message}"
+                //             } finally {
+                //                 isSubmittingRecord = false
+                //             }
+                //         }
+                //     },
+                //     enabled = detail != null && !isSubmittingRecord
+                // ) {
+                //     Text(if (isSubmittingRecord) "กำลังบันทึก..." else "ยืนยันได้รับวัคซีนจริง")
+                // }
             }
         }
     }
