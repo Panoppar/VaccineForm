@@ -37,6 +37,17 @@ const NO_X = 519;
 
 const CONSENT_MARK = { x: 42, y: 124.4 };
 
+// Drawn as vector lines rather than a "✓" text glyph, since the embedded
+// Thai font (Noto Sans Thai) only covers Thai + basic Latin and may not
+// contain a check mark glyph — this renders identically regardless of font.
+function drawCheckmark(page, x, y, opts) {
+    const size = opts.size || 11;
+    const color = opts.color;
+    const thickness = opts.thickness || 1.6;
+    page.drawLine({ start: { x, y: y + size * 0.32 }, end: { x: x + size * 0.38, y }, thickness, color });
+    page.drawLine({ start: { x: x + size * 0.38, y }, end: { x: x + size, y: y + size * 0.85 }, thickness, color });
+}
+
 let cachedTemplateBytes = null;
 let cachedFontBytes = null;
 
@@ -91,14 +102,14 @@ async function generateAndPrintVaccineForm(patientInfoJson, answersJson) {
             const row = CHECKLIST_ROWS.find((r) => (answer.question || "").includes(r.keyword));
             if (!row) return;
             const x = answer.isYes ? YES_X : NO_X;
-            page.drawText("X", { x, y: row.y, ...markOpts });
+            drawCheckmark(page, x, row.y, { size: markOpts.size, color: markOpts.color });
         });
 
         // Patient already digitally consented in the app before submitting,
         // so the informed-consent checkbox is marked automatically. The
         // signature line is intentionally left blank for an in-person
         // wet-ink signature at the time of vaccination.
-        page.drawText("X", { x: CONSENT_MARK.x, y: CONSENT_MARK.y, ...markOpts });
+        drawCheckmark(page, CONSENT_MARK.x, CONSENT_MARK.y, { size: markOpts.size, color: markOpts.color });
 
         const pdfBytes = await pdfDoc.save();
         const blob = new Blob([pdfBytes], { type: "application/pdf" });
