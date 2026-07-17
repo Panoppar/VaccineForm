@@ -16,7 +16,7 @@ class VaccineApiService(private val baseUrl: String = API_BASE_URL) {
         httpClient.get("$baseUrl/screening-questions").body()
 
     // POST /api/v1/registrations
-    // Error: 400 (ข้อมูลผิด/เอกสารซ้ำ), 409 (วัคซีนหมดสต็อก)
+    // Backend จะทำการ Auto-FIFO เลือกล็อตให้เอง
     suspend fun submitRegistration(request: RegistrationRequest): RegistrationResponse {
         val response = httpClient.post("$baseUrl/registrations") {
             contentType(ContentType.Application.Json)
@@ -28,7 +28,7 @@ class VaccineApiService(private val baseUrl: String = API_BASE_URL) {
         return response.body()
     }
 
-    // GET /api/v1/registrations?q=<คำค้น>&page=1&limit=20
+    // GET /api/v1/registrations
     suspend fun listRegistrations(
         query: String? = null,
         page: Int = 1,
@@ -47,5 +47,50 @@ class VaccineApiService(private val baseUrl: String = API_BASE_URL) {
         val response = httpClient.get("$baseUrl/registrations/$patientId")
         if (response.status == HttpStatusCode.NotFound) return null
         return response.body()
+    }
+
+    // ==========================================
+    // Vaccine & Lot Management API
+    // ==========================================
+
+    // POST /api/v1/vaccines
+    suspend fun createVaccine(request: VaccineCreateRequest): VaccineCreateResponse {
+        val response = httpClient.post("$baseUrl/vaccines") {
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }
+        if (!response.status.isSuccess()) {
+            throw ApiException(response.status.value, response.bodyAsText())
+        }
+        return response.body()
+    }
+
+    // POST /api/v1/vaccines/:vaccine_id/lots
+    suspend fun createLot(vaccineId: Int, request: LotCreateRequest): LotCreateResponse {
+        val response = httpClient.post("$baseUrl/vaccines/$vaccineId/lots") {
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }
+        if (!response.status.isSuccess()) {
+            throw ApiException(response.status.value, response.bodyAsText())
+        }
+        return response.body()
+    }
+
+    // ==========================================
+    // Direct Vaccination Record API
+    // ==========================================
+
+    // POST /api/v1/vaccination-records
+    // บันทึกตรง หักสต็อกทันที (ไม่มี Auto-FIFO) อาจเจอปัญหา 404 (ไม่มีผู้ป่วย), 409 (วัคซีนหมด)
+    suspend fun createVaccinationRecord(request: VaccinationRecordRequest) {
+        val response = httpClient.post("$baseUrl/vaccination-records") {
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }
+        if (!response.status.isSuccess()) {
+            throw ApiException(response.status.value, response.bodyAsText())
+        }
+        // ไม่มีการ Return Body พิเศษ หรือถ้ามีสามารถเพิ่ม Response Data Class มารับได้เลย
     }
 }

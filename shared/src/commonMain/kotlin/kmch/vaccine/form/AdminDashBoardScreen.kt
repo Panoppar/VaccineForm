@@ -16,6 +16,7 @@ import kmch.vaccine.form.util.PrintAnswerItem
 import kmch.vaccine.form.util.PrintPatientInfo
 import kmch.vaccine.form.util.printVaccineDocument
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -26,17 +27,14 @@ fun AdminDashBoardScreen(onNavigateBack: () -> Unit) {
     var selectedPatientId by remember { mutableStateOf<Int?>(null) }
     var isCreatingNew by remember { mutableStateOf(false) }
 
-    // 1. STATE HOISTING: ย้ายตัวแปรสำหรับเก็บ Lot และ เลขอัตราเจ้าหน้าที่ มาไว้ระดับบนสุด
-    // เพื่อให้ข้อมูลไม่หายไปเมื่อมีการสลับ Composable ระหว่าง List และ Detail
+    // STATE HOISTING
     var lotInput by remember { mutableStateOf("") }
     var employeeRateId by remember { mutableStateOf("") }
 
-    // ควบคุมการแสดงผลว่าจะโชว์หน้ารายการ หรือหน้ารายละเอียด
     if (selectedPatientId != null || isCreatingNew) {
         AdminDetailView(
             patientId = selectedPatientId,
             isNew = isCreatingNew,
-            // 2. ส่งค่าที่เก็บไว้ลงไปให้ AdminDetailView เพื่อเอาไปใช้ยิง API
             lotInput = lotInput,
             employeeRateId = employeeRateId,
             onBack = {
@@ -46,12 +44,10 @@ fun AdminDashBoardScreen(onNavigateBack: () -> Unit) {
         )
     } else {
         AdminListView(
-            // 3. ส่ง State และ Lambda function สำหรับอัปเดตค่า ลงไปให้ AdminListView
             lotInput = lotInput,
-            onLotInputChange = { lotInput = it },
+            onLotInputChange = { lotInput = it.filter { char -> char.isDigit() } }, // บังคับกรอกเป็นตัวเลข Lot ID
             employeeRateId = employeeRateId,
             onEmployeeRateIdChange = { employeeRateId = it },
-
             onPatientSelected = { selectedPatientId = it },
             onCreateNew = { isCreatingNew = true }
         )
@@ -68,13 +64,16 @@ fun AdminListView(
     onCreateNew: () -> Unit
 ) {
     var searchQuery by remember { mutableStateOf("") }
-
     val apiService = remember { VaccineApiService() }
+    val coroutineScope = rememberCoroutineScope()
+
     var registrationsList by remember { mutableStateOf<List<RegistrationListItem>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var showAddVaccineDialog by remember { mutableStateOf(false) }
 
-    // ดึงรายการจาก GET /api/v1/registrations?q=... ทุกครั้งที่ผู้ใช้พิมพ์ค้นหา (หน่วงเวลาเล็กน้อยกันยิง API รัว)
+    // สำหรับแจ้งเตือนผลลัพธ์
+    var dialogAlertMessage by remember { mutableStateOf<String?>(null) }
+
     LaunchedEffect(searchQuery) {
         delay(300)
         isLoading = true
@@ -87,18 +86,44 @@ fun AdminListView(
         }
     }
 
-    // ส่วนเรียกใช้ Dialog (จะทำงานเมื่อ showAddVaccineDialog เป็น true)
+    // แจ้งเตือนผลลัพธ์การเพิ่มวัคซีน/ล็อต
+    if (dialogAlertMessage != null) {
+        AlertDialog(
+            onDismissRequest = { dialogAlertMessage = null },
+            confirmButton = { TextButton(onClick = { dialogAlertMessage = null }) { Text("ตกลง") } },
+            title = { Text("แจ้งเตือน") },
+            text = { Text(dialogAlertMessage!!) }
+        )
+    }
+
     if (showAddVaccineDialog) {
         AddVaccineOrLotDialog(
             onDismiss = { showAddVaccineDialog = false },
             onSaveVaccine = { newVaccineName ->
-                // TODO: เรียก API POST /api/v1/vaccines พร้อมพารามิเตอร์ vaccine_name
-                println("บันทึกวัคซีนใหม่: $newVaccineName")
+                coroutineScope.launch {
+                    try {
+                        val response = apiService.createVaccine(VaccineCreateRequest(vaccineName = newVaccineName))
+                        dialogAlertMessage = "เพิ่มวัคซีนสำเร็จ (Vaccine ID: ${response.vaccineId})"
+                        showAddVaccineDialog = false
+                    } catch (e: Exception) {
+                        dialogAlertMessage = "เกิดข้อผิดพลาด: ${e.message}"
+                    }
+                }
             },
             onSaveLot = { refVaccineId, newLotNumber, initialQty ->
-                // TODO: เรียก API POST /api/v1/vaccine-lots พร้อมพารามิเตอร์ vaccine_id, lot_number, initial_quantity
-                // หมายเหตุ: API ควรเซ็ต remaining_quantity = initial_quantity ในฝั่ง Backend
-                println("บันทึกล็อตใหม่: วัคซีน ID $refVaccineId, Lot $newLotNumber, จำนวน $initialQty")
+                coroutineScope.launch {
+                    try {
+                        val vId = refVaccineId.toIntOrNull() ?: throw Exception("ID วัคซีนต้องเป็นตัวเลข")
+                        val response = apiService.createLot(
+                            vaccineId = vId,
+                            request = LotCreateRequest(lotNumber = newLotNumber, initialQuantity = initialQty)
+                        )
+                        dialogAlertMessage = "เพิ่มล็อตสำเร็จ (Lot ID: ${response.lotId})"
+                        showAddVaccineDialog = false
+                    } catch (e: Exception) {
+                        dialogAlertMessage = "เกิดข้อผิดพลาด: ${e.message}"
+                    }
+                }
             }
         )
     }
@@ -107,7 +132,6 @@ fun AdminListView(
         Text("แดชบอร์ดจัดการคัดกรองวัคซีน", style = MaterialTheme.typography.headlineSmall)
         Spacer(modifier = Modifier.height(16.dp))
 
-        // ส่วน Header ควบคุมและค้นหา
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -115,15 +139,15 @@ fun AdminListView(
         ) {
             Row(
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalAlignment = Alignment.CenterVertically // เพื่อให้ Field และ ปุ่ม + อยู่กึ่งกลางตรงกัน
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                // จัดกลุ่ม Field ของ Lot และปุ่ม + เข้าด้วยกัน
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     OutlinedTextField(
                         value = lotInput,
                         onValueChange = onLotInputChange,
-                        label = { Text("Lot วัคซีน") },
-                        modifier = Modifier.width(160.dp) // ปรับขนาดลงเล็กน้อยเพื่อให้พอดีกับปุ่ม
+                        label = { Text("Lot ID (ตัวเลข)") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.width(160.dp)
                     )
                     IconButton(
                         onClick = { showAddVaccineDialog = true },
@@ -160,7 +184,7 @@ fun AdminListView(
         }
 
         Spacer(modifier = Modifier.height(24.dp))
-        Divider()
+        HorizontalDivider()
         Spacer(modifier = Modifier.height(16.dp))
 
         if (isLoading) {
@@ -168,12 +192,7 @@ fun AdminListView(
                 CircularProgressIndicator()
             }
         } else if (registrationsList.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                contentAlignment = Alignment.Center
-            ) {
+            Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
                 Text(
                     text = "ไม่พบข้อมูลผู้รับบริการที่ตรงกับ '$searchQuery'",
                     style = MaterialTheme.typography.bodyLarge,
@@ -218,6 +237,9 @@ fun AdminDetailView(
     employeeRateId: String,
     onBack: () -> Unit
 ) {
+    val apiService = remember { VaccineApiService() }
+    val coroutineScope = rememberCoroutineScope()
+
     Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
         Button(onClick = onBack) {
             Text("< กลับหน้ารายการคัดกรอง")
@@ -228,16 +250,16 @@ fun AdminDetailView(
         if (isNew) {
             Text("กรอกแบบคัดกรองใหม่โดยเจ้าหน้าที่", style = MaterialTheme.typography.headlineSmall)
             Spacer(modifier = Modifier.height(16.dp))
-
-            // VaccineScreeningForm ยิง POST /api/v1/registrations ให้เองเมื่อกดยืนยันบันทึกข้อมูลในฟอร์ม
             VaccineScreeningForm()
-        } else { // กรณีดูรายละเอียดผู้ป่วย (isNew == false)
-            val apiService = remember { VaccineApiService() }
+        } else {
             var detail by remember { mutableStateOf<RegistrationDetail?>(null) }
             var isLoading by remember { mutableStateOf(true) }
             var loadError by remember { mutableStateOf<String?>(null) }
 
-            // ยิง GET /api/v1/registrations/:patient_id
+            // State สำหรับสถานะการบันทึกฉีดวัคซีนจริง
+            var isSubmittingRecord by remember { mutableStateOf(false) }
+            var recordResultMsg by remember { mutableStateOf<String?>(null) }
+
             LaunchedEffect(patientId) {
                 if (patientId != null) {
                     isLoading = true
@@ -273,14 +295,12 @@ fun AdminDetailView(
                     }
                 } else {
                     LazyColumn(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(20.dp),
+                        modifier = Modifier.fillMaxSize().padding(20.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         item {
                             PatientInfoHeader(detail = currentDetail)
-                            Divider(modifier = Modifier.padding(vertical = 16.dp))
+                            HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
                             Text(
                                 text = "ประวัติการตอบคำถาม",
                                 style = MaterialTheme.typography.titleMedium,
@@ -295,10 +315,21 @@ fun AdminDetailView(
                 }
             }
 
-            // ปุ่ม Action ด้านล่างสุดของโหมดดูรายละเอียด
+            // แสดงแจ้งเตือนผลลัพธ์
+            recordResultMsg?.let { msg ->
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = msg,
+                    color = if (msg.contains("สำเร็จ")) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.align(Alignment.End)
+                )
+            }
+
             Row(
                 modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
-                horizontalArrangement = Arrangement.End
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Button(
                     onClick = {
@@ -335,11 +366,41 @@ fun AdminDetailView(
 
                 Button(
                     onClick = {
-                        // TODO (API): ยังไม่มี endpoint แยกสำหรับยืนยันฉีดจริง — POST /registrations สร้าง vaccination record ให้แล้วในขั้นตอนลงทะเบียน
-                        println("บันทึกการฉีดวัคซีนของผู้ป่วย $patientId ด้วย Lot $lotInput โดยเจ้าหน้าที่ $employeeRateId")
-                    }
+                        val lId = lotInput.toIntOrNull()
+                        if (lId == null) {
+                            recordResultMsg = "กรุณาระบุ Lot ID (ตัวเลข) ในช่องด้านบนก่อนกดยืนยัน"
+                            return@Button
+                        }
+                        if (patientId == null || detail == null) return@Button
+
+                        coroutineScope.launch {
+                            isSubmittingRecord = true
+                            recordResultMsg = null
+                            try {
+                                apiService.createVaccinationRecord(
+                                    VaccinationRecordRequest(
+                                        patientId = patientId,
+                                        lotId = lId,
+                                        shotDate = detail!!.shotDate
+                                    )
+                                )
+                                recordResultMsg = "บันทึกการฉีดวัคซีนสำเร็จ! (Lot ID: $lId, เจ้าหน้าที่: $employeeRateId)"
+                            } catch (e: ApiException) {
+                                recordResultMsg = when (e.statusCode) {
+                                    404 -> "ข้อผิดพลาด: ไม่พบผู้ป่วยหรือ Lot ไม่ถูกต้อง"
+                                    409 -> "ข้อผิดพลาด: วัคซีนใน Lot นี้หมดสต็อกแล้ว"
+                                    else -> "ข้อผิดพลาด (${e.statusCode}): ${e.message}"
+                                }
+                            } catch (e: Exception) {
+                                recordResultMsg = "ข้อผิดพลาดเครือข่าย: ${e.message}"
+                            } finally {
+                                isSubmittingRecord = false
+                            }
+                        }
+                    },
+                    enabled = detail != null && !isSubmittingRecord
                 ) {
-                    Text("ยืนยันได้รับวัคซีนจริง")
+                    Text(if (isSubmittingRecord) "กำลังบันทึก..." else "ยืนยันได้รับวัคซีนจริง")
                 }
             }
         }
@@ -348,6 +409,7 @@ fun AdminDetailView(
 
 @Composable
 fun PatientInfoHeader(detail: RegistrationDetail) {
+    // โค้ดเดิม ไม่ต้องแก้ไข
     Column {
         Text(
             text = "ชื่อ-นามสกุล: ${detail.prefix}${detail.firstName} ${detail.lastName}",
@@ -374,12 +436,12 @@ fun PatientInfoHeader(detail: RegistrationDetail) {
 
         Surface(
             color = MaterialTheme.colorScheme.secondaryContainer,
-            shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp)
+            shape = RoundedCornerShape(8.dp)
         ) {
             Text(
                 text = "วันที่รับวัคซีน: ${detail.shotDate}" +
-                    (detail.vaccineName?.let { " • $it" } ?: "") +
-                    (detail.lotNumber?.let { " • Lot $it" } ?: ""),
+                        (detail.vaccineName?.let { " • $it" } ?: "") +
+                        (detail.lotNumber?.let { " • Lot $it" } ?: ""),
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSecondaryContainer
@@ -390,6 +452,7 @@ fun PatientInfoHeader(detail: RegistrationDetail) {
 
 @Composable
 fun QuestionAnswerItem(answer: RegistrationAnswerDetail) {
+    // โค้ดเดิม ไม่ต้องแก้ไข
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -428,6 +491,7 @@ fun QuestionAnswerItem(answer: RegistrationAnswerDetail) {
 }
 
 enum class AddMode { VACCINE, LOT }
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddVaccineOrLotDialog(
@@ -437,10 +501,7 @@ fun AddVaccineOrLotDialog(
 ) {
     var selectedMode by remember { mutableStateOf(AddMode.VACCINE) }
 
-    // State สำหรับโหมดเพิ่มวัคซีน
     var vaccineName by remember { mutableStateOf("") }
-
-    // State สำหรับโหมดเพิ่มล็อต (ในระบบจริง vaccineId ควรปรับเป็น Dropdown Menu ที่ดึงข้อมูลจาก API)
     var vaccineId by remember { mutableStateOf("") }
     var lotNumber by remember { mutableStateOf("") }
     var initialQuantity by remember { mutableStateOf("") }
@@ -450,7 +511,6 @@ fun AddVaccineOrLotDialog(
         title = { Text(text = "จัดการข้อมูลวัคซีน", style = MaterialTheme.typography.titleLarge) },
         text = {
             Column(modifier = Modifier.fillMaxWidth()) {
-                // Radio Buttons สำหรับเลือกประเภทการทำรายการ
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -471,10 +531,9 @@ fun AddVaccineOrLotDialog(
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
-                Divider()
+                HorizontalDivider()
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // สลับ Input Field ตาม State
                 if (selectedMode == AddMode.VACCINE) {
                     OutlinedTextField(
                         value = vaccineName,
@@ -486,7 +545,7 @@ fun AddVaccineOrLotDialog(
                 } else {
                     OutlinedTextField(
                         value = vaccineId,
-                        onValueChange = { vaccineId = it },
+                        onValueChange = { newId -> vaccineId = newId.filter { it.isDigit() } },
                         label = { Text("รหัสอ้างอิงวัคซีน (Vaccine ID)") },
                         modifier = Modifier.fillMaxWidth(),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -503,7 +562,7 @@ fun AddVaccineOrLotDialog(
                     Spacer(modifier = Modifier.height(8.dp))
                     OutlinedTextField(
                         value = initialQuantity,
-                        onValueChange = { initialQuantity = it },
+                        onValueChange = { newQty -> initialQuantity = newQty.filter { it.isDigit() } },
                         label = { Text("จำนวนเริ่มต้น (Initial Quantity)") },
                         modifier = Modifier.fillMaxWidth(),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -521,7 +580,7 @@ fun AddVaccineOrLotDialog(
                         val qty = initialQuantity.toIntOrNull() ?: 0
                         onSaveLot(vaccineId, lotNumber, qty)
                     }
-                    onDismiss()
+                    // หมายเหตุ: ตัด onDismiss() ออกจากตรงนี้ แล้วให้ทำเมื่อ API Success แทนจากด้านบน (showAddVaccineDialog = false)
                 },
                 enabled = if (selectedMode == AddMode.VACCINE) {
                     vaccineName.isNotBlank()

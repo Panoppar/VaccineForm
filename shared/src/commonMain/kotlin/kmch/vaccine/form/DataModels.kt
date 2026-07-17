@@ -27,7 +27,6 @@ enum class DocumentType {
 }
 
 // ===== POST /api/v1/registrations =====
-
 @Serializable
 data class RegistrationAnswerRequest(
     val questionId: Int,
@@ -51,9 +50,8 @@ data class RegistrationRequest(
     val address: String? = null,
     val zipCode: String? = null,
     val shotDate: LocalDate,
-    val vaccineId: Int? = null, // ไม่ใส่ = auto FIFO
-    val lotId: Int? = null,
-    val answers: List<RegistrationAnswerRequest> // ต้องมีครบ 8 ข้อ
+    // เอา vaccineId และ lotId ออกตาม Requirement (Backend ทำ auto FIFO)
+    val answers: List<RegistrationAnswerRequest>
 )
 
 @Serializable
@@ -61,6 +59,38 @@ data class RegistrationResponse(
     val patientId: Int,
     val screeningRecordId: Int,
     val vaccinationId: Int
+)
+
+// ===== Vaccine & Lot Management (สำหรับ Admin) =====
+
+@Serializable
+data class VaccineCreateRequest(
+    val vaccineName: String
+)
+
+@Serializable
+data class VaccineCreateResponse(
+    val vaccineId: Int
+)
+
+@Serializable
+data class LotCreateRequest(
+    val lotNumber: String,
+    val initialQuantity: Int
+)
+
+@Serializable
+data class LotCreateResponse(
+    val lotId: Int
+)
+
+// ===== Direct Vaccination Record =====
+
+@Serializable
+data class VaccinationRecordRequest(
+    val patientId: Int,
+    val lotId: Int, // ต้องระบุเจาะจงเสมอ
+    val shotDate: LocalDate
 )
 
 // ===== GET /api/v1/screening-questions =====
