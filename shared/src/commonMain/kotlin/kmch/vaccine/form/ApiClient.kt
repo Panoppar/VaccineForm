@@ -12,7 +12,7 @@ import kotlinx.serialization.json.JsonNamingStrategy
 // ทีมเซิร์ฟเวอร์เพิ่ม route "/vaccine-api/" -> http://vaccinework_app:8081/ ให้ในนั้น
 // ใช้ relative path นี้เพื่อให้ทำงานได้เหมือนกันทั้งตอน deploy จริง (ผ่าน proxy กลาง)
 // และตอนทดสอบ standalone ในเครื่อง (ผ่าน deploy/nginx.conf.template + BACKEND_HOST)
-const val API_BASE_URL = "/vaccine-api/api/v1"
+const val API_BASE_URL = "/api/v1"
 
 // สร้าง Instance ของ HttpClient เป็น Singleton แบบง่ายๆ
 @OptIn(ExperimentalSerializationApi::class)
