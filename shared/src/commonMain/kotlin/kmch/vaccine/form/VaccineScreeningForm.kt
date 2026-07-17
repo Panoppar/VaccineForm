@@ -62,12 +62,23 @@ fun VaccineScreeningForm() {
 
     // ---- DatePicker State ----
     var showDatePicker by remember { mutableStateOf(false) }
-    // TODO: อาจจะต้องกำหนด SelectableDates เพื่อบล็อกไม่ให้เลือกวันที่ย้อนหลัง หรือเลือกได้เฉพาะวันที่มีแคมเปญฉีดวัคซีน
-    val datePickerState = rememberDatePickerState()
+    // บล็อกไม่ให้เลือกวันที่ย้อนหลัง (เทียบกับเที่ยงคืนของวันนี้แบบ UTC ให้ตรงกับ utcTimeMillis ที่ DatePicker ใช้)
+    val datePickerState = rememberDatePickerState(
+        selectableDates = remember {
+            object : SelectableDates {
+                override fun isSelectableDate(utcTimeMillis: Long): Boolean {
+                    val todayStartMillis = (Clock.System.now().toEpochMilliseconds() / 86_400_000L) * 86_400_000L
+                    return utcTimeMillis >= todayStartMillis
+                }
+            }
+        }
+    )
 
     // ---- คำถามคัดกรอง ----
     var questionList by remember { mutableStateOf<List<ScreeningQuestion>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
+    var loadError by remember { mutableStateOf<String?>(null) }
+    var retryTrigger by remember { mutableStateOf(0) }
 
     var isSubmitted by remember { mutableStateOf(false) }
     var acceptedTerms by remember { mutableStateOf(false) }
@@ -81,12 +92,14 @@ fun VaccineScreeningForm() {
     val scrollState = rememberScrollState()
     val uriHandler = LocalUriHandler.current
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(retryTrigger) {
+        isLoading = true
+        loadError = null
         try {
             questionList = apiService.getScreeningQuestions().sortedBy { it.displayOrder }
         } catch (e: Exception) {
+            loadError = "โหลดแบบคัดกรองไม่สำเร็จ กรุณาตรวจสอบการเชื่อมต่อแล้วลองใหม่อีกครั้ง"
             println("Error fetching questions: ${e.message}")
-            // TODO: แสดง Error UI หรือปุ่ม Retry กรณีโหลดคำถามไม่สำเร็จ
         } finally {
             isLoading = false
         }
@@ -104,19 +117,36 @@ fun VaccineScreeningForm() {
     val parsedAge = age.toIntOrNull()
     val parsedShotDate = runCatching { LocalDate.parse(shotDate) }.getOrNull()
 
-    // TODO: เพิ่มการ Validate Format ให้เข้มงวดขึ้น (เช่น เลขบัตร ปชช. ต้อง 13 หลัก, เบอร์โทรต้อง 10 หลัก)
     val isDocumentValid = when (documentType) {
-        DocumentType.ID_CARD -> idCard.isNotBlank()
+        DocumentType.ID_CARD -> idCard.length == 13
         DocumentType.PASSPORT -> passportId.isNotBlank()
     }
+    val isPhoneValid = telNo.length == 10
     val isPatientInfoValid = prefix.isNotBlank() && firstName.isNotBlank() && lastName.isNotBlank() &&
             sex != null && patientType != null && isDocumentValid &&
-            parsedAge != null && parsedAge > 0 && telNo.isNotBlank() && parsedShotDate != null
+            parsedAge != null && parsedAge > 0 && isPhoneValid && parsedShotDate != null
 
     if (!isSubmitted) {
         if (isLoading) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
+            }
+        } else if (loadError != null) {
+            Column(
+                modifier = Modifier.fillMaxSize().padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = loadError ?: "",
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodyLarge,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Button(onClick = { retryTrigger++ }) {
+                    Text("ลองใหม่อีกครั้ง")
+                }
             }
         } else {
             Column(
@@ -275,8 +305,14 @@ fun VaccineScreeningForm() {
                 if (documentType == DocumentType.ID_CARD) {
                     OutlinedTextField(
                         value = idCard,
-                        onValueChange = { new -> idCard = new.filter { it.isDigit() } }, // กรองให้พิมพ์ได้เฉพาะตัวเลข
+                        onValueChange = { new -> idCard = new.filter { it.isDigit() }.take(13) },
                         label = { Text("เลขบัตรประจำตัวประชาชน") },
+                        isError = idCard.isNotEmpty() && idCard.length != 13,
+                        supportingText = {
+                            if (idCard.isNotEmpty() && idCard.length != 13) {
+                                Text("เลขบัตรประชาชนต้องมี 13 หลัก (ตอนนี้ ${idCard.length} หลัก)")
+                            }
+                        },
                         modifier = Modifier.fillMaxWidth()
                     )
                 } else {
@@ -300,8 +336,14 @@ fun VaccineScreeningForm() {
 
                 OutlinedTextField(
                     value = telNo,
-                    onValueChange = { new -> telNo = new.filter { it.isDigit() } }, // กรองให้พิมพ์ได้เฉพาะตัวเลข
+                    onValueChange = { new -> telNo = new.filter { it.isDigit() }.take(10) },
                     label = { Text("เบอร์โทรศัพท์") },
+                    isError = telNo.isNotEmpty() && telNo.length != 10,
+                    supportingText = {
+                        if (telNo.isNotEmpty() && telNo.length != 10) {
+                            Text("เบอร์โทรศัพท์ต้องมี 10 หลัก (ตอนนี้ ${telNo.length} หลัก)")
+                        }
+                    },
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(modifier = Modifier.height(12.dp))
@@ -625,7 +667,30 @@ fun VaccineScreeningForm() {
 
             Spacer(modifier = Modifier.height(32.dp))
             Button(onClick = {
-                // TODO: นำทางผู้ใช้กลับไปหน้าแรก หรือ Reset ฟอร์ม
+                // ไม่มีหน้า Home แยกต่างหาก (มีแค่ /vaccine/form, /vaccine/admin, 404) และฟอร์มนี้
+                // เป็นสถานีสาธารณะให้คนถัดไปใช้ต่อ จึงรีเซ็ตฟอร์มกลับสู่สถานะว่างแทนการนำทางไปที่อื่น
+                prefix = ""
+                firstName = ""
+                lastName = ""
+                sex = null
+                patientType = null
+                documentType = DocumentType.ID_CARD
+                idCard = ""
+                passportId = ""
+                age = ""
+                telNo = ""
+                underlyingDisease = ""
+                address = ""
+                zipCode = ""
+                shotDate = Clock.System.now().toString().substring(0, 10)
+                answers.clear()
+                remarks.clear()
+                acceptedTerms = false
+                acceptedVaccineInfo = false
+                submitError = null
+                successResponse = null
+                isSubmitted = false
+                coroutineScope.launch { scrollState.scrollTo(0) }
             }) {
                 Text("กลับสู่หน้าหลัก")
             }

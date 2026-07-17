@@ -345,6 +345,7 @@ fun AdminDetailView(
                             }
                             printVaccineDocument(
                                 patient = PrintPatientInfo(
+                                    prefix = snapshot.prefix,
                                     firstName = snapshot.firstName,
                                     lastName = snapshot.lastName,
                                     idCard = snapshot.idCard,

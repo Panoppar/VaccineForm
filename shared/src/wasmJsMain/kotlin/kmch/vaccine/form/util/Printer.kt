@@ -6,6 +6,7 @@ import kotlinx.serialization.json.Json
 
 @Serializable
 private data class JsPatientInfo(
+    val prefix: String,
     val firstName: String,
     val lastName: String,
     val idCard: String?,
@@ -34,6 +35,7 @@ actual fun printVaccineDocument(
     answers: List<PrintAnswerItem>
 ) {
     val jsPatient = JsPatientInfo(
+        prefix = patient.prefix,
         firstName = patient.firstName,
         lastName = patient.lastName,
         idCard = patient.idCard,

@@ -1,6 +1,7 @@
 package kmch.vaccine.form.util
 
 data class PrintPatientInfo(
+    val prefix: String,
     val firstName: String,
     val lastName: String,
     val idCard: String?,

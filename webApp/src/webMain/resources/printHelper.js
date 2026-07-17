@@ -89,7 +89,8 @@ async function generateAndPrintVaccineForm(patientInfoJson, answersJson) {
         const idNumber = patient.idCard || patient.passportId || "";
         const [addr1, addr2] = wrapAddress(patient.address, 45);
 
-        page.drawText(patient.firstName || "", { x: PATIENT_FIELDS.name.x, y: PATIENT_FIELDS.name.y, ...textOpts });
+        const displayName = `${patient.prefix || ""}${patient.firstName || ""}`;
+        page.drawText(displayName, { x: PATIENT_FIELDS.name.x, y: PATIENT_FIELDS.name.y, ...textOpts });
         page.drawText(patient.lastName || "", { x: PATIENT_FIELDS.lastName.x, y: PATIENT_FIELDS.lastName.y, ...textOpts });
         page.drawText(idNumber, { x: PATIENT_FIELDS.idCard.x, y: PATIENT_FIELDS.idCard.y, ...textOpts });
         page.drawText(patient.underlyingDisease || "-", { x: PATIENT_FIELDS.disease.x, y: PATIENT_FIELDS.disease.y, ...textOpts });
