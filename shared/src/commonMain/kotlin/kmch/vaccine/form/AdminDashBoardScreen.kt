@@ -22,6 +22,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import kmch.vaccine.form.theme.successColors
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 
 @Composable
 fun AdminDashBoardScreen(onNavigateBack: () -> Unit) {
@@ -55,6 +57,7 @@ fun AdminDashBoardScreen(onNavigateBack: () -> Unit) {
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun AdminListView(
     lotInput: String,
@@ -71,8 +74,6 @@ fun AdminListView(
     var registrationsList by remember { mutableStateOf<List<RegistrationListItem>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var showAddVaccineDialog by remember { mutableStateOf(false) }
-
-    // สำหรับแจ้งเตือนผลลัพธ์
     var dialogAlertMessage by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(searchQuery) {
@@ -87,7 +88,6 @@ fun AdminListView(
         }
     }
 
-    // แจ้งเตือนผลลัพธ์การเพิ่มวัคซีน/ล็อต
     if (dialogAlertMessage != null) {
         AlertDialog(
             onDismissRequest = { dialogAlertMessage = null },
@@ -98,6 +98,7 @@ fun AdminListView(
     }
 
     if (showAddVaccineDialog) {
+        // (โค้ด AddVaccineOrLotDialog คงเดิม)
         AddVaccineOrLotDialog(
             onDismiss = { showAddVaccineDialog = false },
             onSaveVaccine = { newVaccineName ->
@@ -129,58 +130,52 @@ fun AdminListView(
         )
     }
 
-    Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
+    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) { // ลด padding ลงนิดหน่อยเพื่อให้เหมาะกับมือถือ
         Text("แดชบอร์ดจัดการคัดกรองวัคซีน", style = MaterialTheme.typography.headlineSmall)
         Spacer(modifier = Modifier.height(16.dp))
 
-        Row(
+        // ใช้ FlowRow เพื่อให้ปัดบรรทัดอัตโนมัติเมื่อจอแคบ
+        FlowRow(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    OutlinedTextField(
-                        value = lotInput,
-                        onValueChange = onLotInputChange,
-                        label = { Text("Lot ID (ตัวเลข)") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.width(160.dp)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                OutlinedTextField(
+                    value = lotInput,
+                    onValueChange = onLotInputChange,
+                    label = { Text("Lot ID (ตัวเลข)") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.width(140.dp)
+                )
+                IconButton(
+                    onClick = { showAddVaccineDialog = true },
+                    modifier = Modifier.padding(start = 4.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "เพิ่มวัคซีนหรือล็อตใหม่",
+                        tint = MaterialTheme.colorScheme.primary
                     )
-                    IconButton(
-                        onClick = { showAddVaccineDialog = true },
-                        modifier = Modifier.padding(start = 4.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Add,
-                            contentDescription = "เพิ่มวัคซีนหรือล็อตใหม่",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
                 }
-
-                OutlinedTextField(
-                    value = employeeRateId,
-                    onValueChange = onEmployeeRateIdChange,
-                    label = { Text("เลขอัตราเจ้าหน้าที่") },
-                    modifier = Modifier.width(200.dp)
-                )
             }
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    label = { Text("ค้นหาชื่อ/เลขบัตร/เบอร์โทร") }
-                )
-                FloatingActionButton(onClick = onCreateNew) {
-                    Text("+")
-                }
+
+            OutlinedTextField(
+                value = employeeRateId,
+                onValueChange = onEmployeeRateIdChange,
+                label = { Text("เลขอัตราเจ้าหน้าที่") },
+                modifier = Modifier.width(180.dp)
+            )
+
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                label = { Text("ค้นหาชื่อ/เลขบัตร/เบอร์โทร") },
+                modifier = Modifier.weight(1f).widthIn(min = 200.dp) // ขยายให้เต็มพื้นที่ที่เหลือแต่กำหนดขั้นต่ำไว้
+            )
+
+            FloatingActionButton(onClick = onCreateNew) {
+                Text("+")
             }
         }
 
@@ -203,25 +198,41 @@ fun AdminListView(
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxWidth().weight(1f),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(registrationsList) { item ->
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         onClick = { onPatientSelected(item.patientId) }
                     ) {
-                        Row(
-                            modifier = Modifier.padding(16.dp).fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text("รหัส: ${item.patientId}", style = MaterialTheme.typography.bodyLarge)
+                        // ปรับจาก Row ยาวๆ เป็น Column เพื่อไม่ให้ข้อความเบียดกันในมือถือ
+                        Column(modifier = Modifier.padding(16.dp).fillMaxWidth()) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.Top
+                            ) {
+                                Text(
+                                    text = "รหัส: ${item.patientId}",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "วันที่: ${item.shotDate}",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
                             Text(
                                 "ชื่อ-นามสกุล: ${item.prefix}${item.firstName} ${item.lastName}",
                                 style = MaterialTheme.typography.bodyLarge
                             )
-                            Text("เบอร์โทร: ${item.telNo}")
-                            Text("วันที่รับวัคซีน: ${item.shotDate}")
+                            Text(
+                                "เบอร์โทร: ${item.telNo}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
                     }
                 }
@@ -230,6 +241,7 @@ fun AdminListView(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun AdminDetailView(
     patientId: Int?,
@@ -278,10 +290,10 @@ fun AdminDetailView(
                 }
             }
 
-            Row(
+            FlowRow(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalArrangement = Arrangement.spacedBy(8.dp) // เว้นระยะถ้าต้องปัดบรรทัด
             ) {
                 Text("รายละเอียดแบบคัดกรอง (Patient ID: $patientId)", style = MaterialTheme.typography.headlineSmall)
 
