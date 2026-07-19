@@ -11,7 +11,10 @@
 #   }
 services:
   frontend:
-    build: .
+    build:
+      context: .
+      secrets:
+        - local_props
     container_name: vaccineform_frontend
     ports:
       - "${FRONTEND_PORT:-8090}:80"
@@ -23,3 +26,8 @@ services:
 networks:
   hospitalkmch_default:
     external: true
+
+secrets:
+  local_props:
+    # ระบุพาร์ทไปยังไฟล์ local.properties ในเครื่องของคุณ
+    file: ./local.properties
