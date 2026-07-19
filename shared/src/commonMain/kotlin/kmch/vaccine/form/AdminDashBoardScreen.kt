@@ -134,12 +134,12 @@ fun AdminListView(
         Text("แดชบอร์ดจัดการคัดกรองวัคซีน", style = MaterialTheme.typography.headlineSmall)
         Spacer(modifier = Modifier.height(16.dp))
 
-        // ใช้ FlowRow เพื่อให้ปัดบรรทัดอัตโนมัติเมื่อจอแคบ
         FlowRow(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // 1. กลุ่ม Lot ID
             Row(verticalAlignment = Alignment.CenterVertically) {
                 OutlinedTextField(
                     value = lotInput,
@@ -148,18 +148,22 @@ fun AdminListView(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.width(140.dp)
                 )
-                IconButton(
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                // เปลี่ยนเป็น FloatingActionButton ให้หน้าตาเหมือนกัน
+                FloatingActionButton(
                     onClick = { showAddVaccineDialog = true },
-                    modifier = Modifier.padding(start = 4.dp)
+                    modifier = Modifier.size(48.dp) // ปรับขนาดให้ไม่ใหญ่เกินไปเมื่ออยู่ใน Row
                 ) {
                     Icon(
                         imageVector = Icons.Default.Add,
-                        contentDescription = "เพิ่มวัคซีนหรือล็อตใหม่",
-                        tint = MaterialTheme.colorScheme.primary
+                        contentDescription = "เพิ่มวัคซีนหรือล็อตใหม่"
                     )
                 }
             }
 
+            // 2. กลุ่มเลขอัตราเจ้าหน้าที่ (คงเดิม)
             OutlinedTextField(
                 value = employeeRateId,
                 onValueChange = onEmployeeRateIdChange,
@@ -167,15 +171,29 @@ fun AdminListView(
                 modifier = Modifier.width(180.dp)
             )
 
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
-                label = { Text("ค้นหาชื่อ/เลขบัตร/เบอร์โทร") },
-                modifier = Modifier.weight(1f).widthIn(min = 200.dp) // ขยายให้เต็มพื้นที่ที่เหลือแต่กำหนดขั้นต่ำไว้
-            )
+            // 3. กลุ่มค้นหา และปุ่มสร้างแบบสอบถามใหม่
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    label = { Text("ค้นหาชื่อ/เลขบัตร/เบอร์โทร") },
+                    modifier = Modifier.weight(1f)
+                )
 
-            FloatingActionButton(onClick = onCreateNew) {
-                Text("+")
+                // ปรับมาใช้ Icon แทน Text("+") เพื่อให้สวยงามและเข้าคู่กับปุ่มด้านบน
+                FloatingActionButton(
+                    onClick = onCreateNew,
+                    modifier = Modifier.size(48.dp) // ปรับขนาดให้เท่ากัน
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "สร้างแบบคัดกรองใหม่"
+                    )
+                }
             }
         }
 
@@ -253,9 +271,10 @@ fun AdminDetailView(
     val apiService = remember { VaccineApiService() }
     val coroutineScope = rememberCoroutineScope()
 
-    Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
+    // เปลี่ยนจาก padding(24.dp) เป็น 16.dp
+    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         Button(onClick = onBack) {
-            Text("< กลับหน้ารายการคัดกรอง")
+            Text("< กลับ") // ลดคำให้สั้นลงเพื่อประหยัดพื้นที่บนมือถือ
         }
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -555,23 +574,25 @@ fun AddVaccineOrLotDialog(
         title = { Text(text = "จัดการข้อมูลวัคซีน", style = MaterialTheme.typography.titleLarge) },
         text = {
             Column(modifier = Modifier.fillMaxWidth()) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    RadioButton(
-                        selected = selectedMode == AddMode.VACCINE,
-                        onClick = { selectedMode = AddMode.VACCINE }
-                    )
-                    Text("เพิ่มวัคซีนใหม่", style = MaterialTheme.typography.bodyMedium)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        RadioButton(
+                            selected = selectedMode == AddMode.VACCINE,
+                            onClick = { selectedMode = AddMode.VACCINE }
+                        )
+                        Text("เพิ่มวัคซีนใหม่", style = MaterialTheme.typography.bodyMedium)
+                    }
 
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    RadioButton(
-                        selected = selectedMode == AddMode.LOT,
-                        onClick = { selectedMode = AddMode.LOT }
-                    )
-                    Text("เพิ่มล็อตวัคซีน", style = MaterialTheme.typography.bodyMedium)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        RadioButton(
+                            selected = selectedMode == AddMode.LOT,
+                            onClick = { selectedMode = AddMode.LOT }
+                        )
+                        Text("เพิ่มล็อตวัคซีน", style = MaterialTheme.typography.bodyMedium)
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
