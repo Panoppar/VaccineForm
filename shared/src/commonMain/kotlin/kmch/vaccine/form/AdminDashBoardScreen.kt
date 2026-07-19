@@ -181,7 +181,7 @@ fun AdminListView(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
                     label = { Text("ค้นหาชื่อ/เลขบัตร/เบอร์โทร") },
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.width(180.dp)
                 )
 
                 // ปรับมาใช้ Icon แทน Text("+") เพื่อให้สวยงามและเข้าคู่กับปุ่มด้านบน
