@@ -1,4 +1,5 @@
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
+import java.util.Properties
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
@@ -6,6 +7,7 @@ plugins {
     alias(libs.plugins.composeCompiler)
     // เอา version ออก ปล่อยให้ Gradle อิงตามเวอร์ชันของ Kotlin หลัก
     kotlin("plugin.serialization")version "2.4.0"
+    id("com.codingfeline.buildkonfig") version "0.15.1"
 }
 
 kotlin {
@@ -57,5 +59,29 @@ kotlin {
         wasmJsMain.dependencies {
             implementation("io.ktor:ktor-client-js:3.0.0")
         }
+    }
+}
+
+val localProperties = Properties()
+val localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localProperties.load(localPropertiesFile.inputStream())
+}
+
+// ดึงค่ารหัสผ่าน ถ้าไฟล์ไม่มีหรือไม่ได้ใส่ไว้ ให้ใช้ "admin" เป็นค่าสำรอง
+val adminPassword = localProperties.getProperty("ADMIN_PASSWORD") ?: "admin"
+
+// ตั้งค่า BuildKonfig เพื่อสร้างไฟล์ Kotlin อัตโนมัติ
+buildkonfig {
+    // กำหนดชื่อ Package ที่ต้องการให้ไฟล์ถูกสร้างขึ้น (ปรับให้ตรงกับโค้ดคุณ)
+    packageName = "kmch.vaccine.form.config"
+
+    defaultConfigs {
+        // ประกาศตัวแปรชนิด String ชื่อ ADMIN_PASSWORD
+        buildConfigField(
+            com.codingfeline.buildkonfig.compiler.FieldSpec.Type.STRING,
+            "ADMIN_PASSWORD",
+            adminPassword
+        )
     }
 }

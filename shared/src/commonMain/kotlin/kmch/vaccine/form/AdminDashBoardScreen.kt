@@ -23,6 +23,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import kmch.vaccine.form.theme.successColors
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import kmch.vaccine.form.config.BuildKonfig
 import androidx.compose.foundation.layout.FlowRow
 
 @Composable
@@ -662,4 +664,109 @@ fun AddVaccineOrLotDialog(
             }
         }
     )
+}
+
+@Composable
+fun ProtectedAdminScreen(onNavigateBack: () -> Unit) {
+    // สถานะจำว่าเข้าสู่ระบบผ่านหรือยัง
+    var isAuthenticated by remember { mutableStateOf(false) }
+
+    if (isAuthenticated) {
+        // ถ้ารหัสผ่านถูกต้อง ให้แสดงหน้า Admin ของเดิม
+        AdminDashBoardScreen(onNavigateBack = onNavigateBack)
+    } else {
+        // ถ้ายืนยันตัวตนยังไม่ผ่าน ให้แสดงหน้ากรอกรหัส
+        AdminLoginScreen(
+            onLoginSuccess = { isAuthenticated = true },
+            onNavigateBack = onNavigateBack
+        )
+    }
+}
+
+// 2. หน้าจอกรอกรหัสผ่าน (UI)
+@Composable
+fun AdminLoginScreen(
+    onLoginSuccess: () -> Unit,
+    onNavigateBack: () -> Unit
+) {
+    var passwordInput by remember { mutableStateOf("") }
+    var isError by remember { mutableStateOf(false) }
+
+    // รหัสผ่านสำหรับเข้าหน้าแอดมิน (สามารถเปลี่ยนเป็นดึงจาก API หรือตัวแปรอื่นได้)
+    val adminPassword = "admin"
+
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Card(
+            modifier = Modifier
+                .widthIn(min = 300.dp, max = 400.dp)
+                .padding(16.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    text = "ระบบจัดการแอดมิน",
+                    style = MaterialTheme.typography.headlineSmall
+                )
+
+                Text(
+                    text = "กรุณากรอกรหัสผ่านเพื่อเข้าใช้งาน",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                OutlinedTextField(
+                    value = passwordInput,
+                    onValueChange = {
+                        passwordInput = it
+                        isError = false // พิมพ์ใหม่ให้ลบแจ้งเตือน error ออก
+                    },
+                    label = { Text("รหัสผ่าน") },
+                    singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(), // ปิดบังรหัสผ่านเป็นจุด ***
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    isError = isError,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                if (isError) {
+                    Text(
+                        text = "รหัสผ่านไม่ถูกต้อง",
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.align(Alignment.Start)
+                    )
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    TextButton(onClick = onNavigateBack) {
+                        Text("กลับหน้าหลัก")
+                    }
+
+                    Button(
+                        onClick = {
+                            if (passwordInput == BuildKonfig.ADMIN_PASSWORD) {
+                                onLoginSuccess()
+                            } else {
+                                isError = true
+                            }
+                        }
+                    ) {
+                        Text("เข้าสู่ระบบ")
+                    }
+                }
+            }
+        }
+    }
 }

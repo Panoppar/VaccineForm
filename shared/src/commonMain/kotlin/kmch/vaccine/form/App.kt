@@ -30,15 +30,20 @@ fun App() {
         Surface(modifier = Modifier.fillMaxSize()) {
             when {
                 // หาก URL คือ http://localhost:8080/#/vaccine/admin
-                currentRoute.contains("#/vaccine/admin") -> AdminDashBoardScreen(
-                    onNavigateBack = {
-                        window.location.hash = "#/vaccine/admin"
-                    }
-                )
+                currentRoute.contains("#/vaccine/admin") -> {
+                    // เรียกใช้ ProtectedAdminScreen แทน เพื่อให้ติดหน้า Login ก่อน
+                    ProtectedAdminScreen(
+                        onNavigateBack = {
+                            // เมื่อกดปุ่มกลับ ให้เตะออกไปหน้าแบบฟอร์ม หรือหน้าแรก
+                            window.location.hash = "#/vaccine/form"
+                        }
+                    )
+                }
 
                 // หาก URL คือ http://localhost:8080/#/vaccine/form
-                // เรียกใช้งานแบบวงเล็บเปล่าๆ ตรงกับที่ประกาศไว้ในไฟล์ VaccineScreeningForm.kt
-                currentRoute.contains("#/vaccine/form") -> VaccineScreeningForm()
+                currentRoute.contains("#/vaccine/form") -> {
+                    VaccineScreeningForm()
+                }
 
                 // หากพิมพ์ URL ผิด หรือเข้ามาที่หน้าแรกตรงๆ โดยไม่มี Hash
                 else -> {
@@ -49,12 +54,20 @@ fun App() {
                     ) {
                         Text(
                             text = "404 Not Found",
-                            color = MaterialTheme.colorScheme.error
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.headlineMedium
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
                             text = "กรุณาระบุ URL Path ให้ถูกต้องเพื่อเข้าถึงระบบ",
+                            style = MaterialTheme.typography.bodyLarge
                         )
+                        Spacer(modifier = Modifier.height(24.dp))
+
+                        // ปุ่มสำหรับกดนำทางไปยังหน้าแบบฟอร์ม
+                        Button(onClick = { window.location.hash = "#/vaccine/form" }) {
+                            Text("ไปยังหน้าฟอร์มคัดกรอง")
+                        }
                     }
                 }
             }
