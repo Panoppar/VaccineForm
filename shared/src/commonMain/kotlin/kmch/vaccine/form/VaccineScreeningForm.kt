@@ -50,19 +50,18 @@ fun VaccineScreeningForm() {
 
     // ---- Dropdown States ----
     var expandedPrefix by remember { mutableStateOf(false) }
-    val prefixOptions = listOf("นาย", "นาง", "นางสาว")
+    val prefixOptions = listOf("นาย/MR.", "นาง/MS.", "นางสาว/MRS.")
 
     var expandedPatientType by remember { mutableStateOf(false) }
     val patientTypeOptions = mapOf(
-        PatientType.STUDENT to "นักศึกษา",
-        PatientType.EMPLOYEE to "พนักงาน",
-        PatientType.COMPANY to "บริษัทคู่สัญญา",
-        PatientType.EXTERNAL to "บุคคลภายนอก"
+        PatientType.STUDENT to "นักศึกษา สจล./KMITL Student",
+        PatientType.EMPLOYEE to "พนักงาน/KMITL Employee",
+        PatientType.COMPANY to "บริษัทคู่สัญญา/Contracted Company",
+        PatientType.EXTERNAL to "บุคคลภายนอก/External"
     )
 
     // ---- DatePicker State ----
     var showDatePicker by remember { mutableStateOf(false) }
-    // บล็อกไม่ให้เลือกวันที่ย้อนหลัง (เทียบกับเที่ยงคืนของวันนี้แบบ UTC ให้ตรงกับ utcTimeMillis ที่ DatePicker ใช้)
     val datePickerState = rememberDatePickerState(
         selectableDates = remember {
             object : SelectableDates {
@@ -84,7 +83,6 @@ fun VaccineScreeningForm() {
     var acceptedTerms by remember { mutableStateOf(false) }
     var acceptedVaccineInfo by remember { mutableStateOf(false) }
 
-    // เพิ่ม State สำหรับเก็บข้อมูลเมื่อบันทึกสำเร็จ
     var successResponse by remember { mutableStateOf<RegistrationResponse?>(null) }
 
     val answers = remember { mutableStateMapOf<Int, Boolean>() }
@@ -98,7 +96,7 @@ fun VaccineScreeningForm() {
         try {
             questionList = apiService.getScreeningQuestions().sortedBy { it.displayOrder }
         } catch (e: Exception) {
-            loadError = "โหลดแบบคัดกรองไม่สำเร็จ กรุณาตรวจสอบการเชื่อมต่อแล้วลองใหม่อีกครั้ง"
+            loadError = "โหลดแบบคัดกรองไม่สำเร็จ กรุณาตรวจสอบการเชื่อมต่อแล้วลองใหม่อีกครั้ง\nFailed to load the screening form. Please check your connection and try again."
             println("Error fetching questions: ${e.message}")
         } finally {
             isLoading = false
@@ -145,7 +143,7 @@ fun VaccineScreeningForm() {
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 Button(onClick = { retryTrigger++ }) {
-                    Text("ลองใหม่อีกครั้ง")
+                    Text("ลองใหม่อีกครั้ง / Try Again")
                 }
             }
         } else {
@@ -156,19 +154,19 @@ fun VaccineScreeningForm() {
                     .verticalScroll(scrollState)
             ) {
                 Text(
-                    text = "แบบสอบถามผู้มารับบริการ วัคซีนไข้หวัดใหญ่ตามฤดูกาล",
+                    text = "แบบสอบถามผู้มารับบริการ วัคซีนไข้หวัดใหญ่ตามฤดูกาล\nSeasonal Influenza Vaccine Screening Form",
                     style = MaterialTheme.typography.headlineSmall,
                     color = MaterialTheme.colorScheme.primary
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "กรุณาทำเครื่องหมายตามความเป็นจริงเพื่อเจ้าหน้าที่จะได้พิจารณาว่าท่านสามารถฉีดวัคซีนได้หรือไม่",
+                    text = "กรุณาทำเครื่องหมายตามความเป็นจริงเพื่อเจ้าหน้าที่จะได้พิจารณาว่าท่านสามารถฉีดวัคซีนได้หรือไม่\nPlease mark truthfully so the staff can determine if you are eligible to receive the vaccine.",
                     style = MaterialTheme.typography.bodyMedium
                 )
                 Spacer(modifier = Modifier.height(24.dp))
 
                 // ==================== ข้อมูลผู้มารับบริการ ====================
-                Text("ข้อมูลผู้มารับบริการ", style = MaterialTheme.typography.titleMedium)
+                Text("ข้อมูลผู้มารับบริการ / Patient Information", style = MaterialTheme.typography.titleMedium)
                 Spacer(modifier = Modifier.height(16.dp))
 
                 // คำนำหน้า (Dropdown)
@@ -180,7 +178,7 @@ fun VaccineScreeningForm() {
                         value = prefix,
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text("คำนำหน้า") },
+                        label = { Text("คำนำหน้า / Prefix") },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedPrefix) },
                         modifier = Modifier
                             .menuAnchor()
@@ -207,7 +205,7 @@ fun VaccineScreeningForm() {
                 OutlinedTextField(
                     value = firstName,
                     onValueChange = { firstName = it },
-                    label = { Text("ชื่อ") },
+                    label = { Text("ชื่อ / First Name") },
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(modifier = Modifier.height(12.dp))
@@ -215,13 +213,13 @@ fun VaccineScreeningForm() {
                 OutlinedTextField(
                     value = lastName,
                     onValueChange = { lastName = it },
-                    label = { Text("นามสกุล") },
+                    label = { Text("นามสกุล / Last Name") },
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(modifier = Modifier.height(16.dp))
 
                 // เพศ
-                Text("เพศ", style = MaterialTheme.typography.bodyMedium)
+                Text("เพศ / Sex", style = MaterialTheme.typography.bodyMedium)
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                     Button(
@@ -231,7 +229,7 @@ fun VaccineScreeningForm() {
                             contentColor = if (sex == Sex.MALE) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
                         ),
                         modifier = Modifier.weight(1f)
-                    ) { Text("ชาย") }
+                    ) { Text("ชาย / Male") }
 
                     Button(
                         onClick = { sex = Sex.FEMALE },
@@ -240,12 +238,12 @@ fun VaccineScreeningForm() {
                             contentColor = if (sex == Sex.FEMALE) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
                         ),
                         modifier = Modifier.weight(1f)
-                    ) { Text("หญิง") }
+                    ) { Text("หญิง / Female") }
                 }
                 Spacer(modifier = Modifier.height(16.dp))
 
                 // ประเภทผู้มารับบริการ
-                Text("ประเภทผู้มารับบริการ", style = MaterialTheme.typography.bodyMedium)
+                Text("ประเภทผู้มารับบริการ / Patient Type", style = MaterialTheme.typography.bodyMedium)
                 Spacer(modifier = Modifier.height(8.dp))
                 ExposedDropdownMenuBox(
                     expanded = expandedPatientType,
@@ -255,7 +253,7 @@ fun VaccineScreeningForm() {
                         value = patientTypeOptions[patientType] ?: "",
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text("เลือกประเภทผู้รับบริการ") },
+                        label = { Text("เลือกประเภทผู้รับบริการ / Select Patient Type") },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedPatientType) },
                         modifier = Modifier
                             .menuAnchor()
@@ -279,7 +277,7 @@ fun VaccineScreeningForm() {
                 Spacer(modifier = Modifier.height(16.dp))
 
                 // เอกสารยืนยันตัวตน
-                Text("เอกสารยืนยันตัวตน", style = MaterialTheme.typography.bodyMedium)
+                Text("เอกสารยืนยันตัวตน / Identification Document", style = MaterialTheme.typography.bodyMedium)
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                     Button(
@@ -289,7 +287,7 @@ fun VaccineScreeningForm() {
                             contentColor = if (documentType == DocumentType.ID_CARD) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
                         ),
                         modifier = Modifier.weight(1f)
-                    ) { Text("บัตรประชาชน") }
+                    ) { Text("บัตรประชาชน / ID Card") }
 
                     Button(
                         onClick = { documentType = DocumentType.PASSPORT },
@@ -298,7 +296,7 @@ fun VaccineScreeningForm() {
                             contentColor = if (documentType == DocumentType.PASSPORT) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
                         ),
                         modifier = Modifier.weight(1f)
-                    ) { Text("พาสปอร์ต") }
+                    ) { Text("พาสปอร์ต / Passport") }
                 }
                 Spacer(modifier = Modifier.height(8.dp))
 
@@ -306,11 +304,11 @@ fun VaccineScreeningForm() {
                     OutlinedTextField(
                         value = idCard,
                         onValueChange = { new -> idCard = new.filter { it.isDigit() }.take(13) },
-                        label = { Text("เลขบัตรประจำตัวประชาชน") },
+                        label = { Text("เลขบัตรประจำตัวประชาชน / ID Card Number") },
                         isError = idCard.isNotEmpty() && idCard.length != 13,
                         supportingText = {
                             if (idCard.isNotEmpty() && idCard.length != 13) {
-                                Text("เลขบัตรประชาชนต้องมี 13 หลัก (ตอนนี้ ${idCard.length} หลัก)")
+                                Text("เลขบัตรประชาชนต้องมี 13 หลัก (ตอนนี้ ${idCard.length} หลัก) / Must be 13 digits (Current: ${idCard.length})")
                             }
                         },
                         modifier = Modifier.fillMaxWidth()
@@ -319,7 +317,7 @@ fun VaccineScreeningForm() {
                     OutlinedTextField(
                         value = passportId,
                         onValueChange = { passportId = it },
-                        label = { Text("เลขที่พาสปอร์ต") },
+                        label = { Text("เลขที่พาสปอร์ต / Passport Number") },
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
@@ -329,7 +327,7 @@ fun VaccineScreeningForm() {
                 OutlinedTextField(
                     value = age,
                     onValueChange = { new -> age = new.filter { it.isDigit() } },
-                    label = { Text("อายุ") },
+                    label = { Text("อายุ / Age") },
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(modifier = Modifier.height(12.dp))
@@ -337,11 +335,11 @@ fun VaccineScreeningForm() {
                 OutlinedTextField(
                     value = telNo,
                     onValueChange = { new -> telNo = new.filter { it.isDigit() }.take(10) },
-                    label = { Text("เบอร์โทรศัพท์") },
+                    label = { Text("เบอร์โทรศัพท์ / Phone Number") },
                     isError = telNo.isNotEmpty() && telNo.length != 10,
                     supportingText = {
                         if (telNo.isNotEmpty() && telNo.length != 10) {
-                            Text("เบอร์โทรศัพท์ต้องมี 10 หลัก (ตอนนี้ ${telNo.length} หลัก)")
+                            Text("เบอร์โทรศัพท์ต้องมี 10 หลัก (ตอนนี้ ${telNo.length} หลัก) / Must be 10 digits (Current: ${telNo.length})")
                         }
                     },
                     modifier = Modifier.fillMaxWidth()
@@ -360,10 +358,10 @@ fun VaccineScreeningForm() {
                                     shotDate = date.toString()
                                 }
                                 showDatePicker = false
-                            }) { Text("ตกลง") }
+                            }) { Text("ตกลง / OK") }
                         },
                         dismissButton = {
-                            TextButton(onClick = { showDatePicker = false }) { Text("ยกเลิก") }
+                            TextButton(onClick = { showDatePicker = false }) { Text("ยกเลิก / Cancel") }
                         }
                     ) {
                         DatePicker(state = datePickerState)
@@ -374,12 +372,12 @@ fun VaccineScreeningForm() {
                     OutlinedTextField(
                         value = shotDate,
                         onValueChange = {},
-                        label = { Text("วันที่รับวัคซีน (YYYY-MM-DD)") },
+                        label = { Text("วันที่รับวัคซีน / Vaccination Date (YYYY-MM-DD)") },
                         modifier = Modifier.fillMaxWidth(),
                         readOnly = true,
                         enabled = false,
                         trailingIcon = {
-                            Icon(Icons.Default.DateRange, contentDescription = "เลือกวันที่")
+                            Icon(Icons.Default.DateRange, contentDescription = "เลือกวันที่ / Select Date")
                         },
                         colors = OutlinedTextFieldDefaults.colors(
                             disabledTextColor = MaterialTheme.colorScheme.onSurface,
@@ -395,7 +393,7 @@ fun VaccineScreeningForm() {
                 OutlinedTextField(
                     value = underlyingDisease,
                     onValueChange = { underlyingDisease = it },
-                    label = { Text("โรคประจำตัว (ถ้ามี)") },
+                    label = { Text("โรคประจำตัว (ถ้ามี) / Underlying Disease (If any)") },
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(modifier = Modifier.height(12.dp))
@@ -403,7 +401,7 @@ fun VaccineScreeningForm() {
                 OutlinedTextField(
                     value = address,
                     onValueChange = { address = it },
-                    label = { Text("ที่อยู่") },
+                    label = { Text("ที่อยู่ / Address") },
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(modifier = Modifier.height(12.dp))
@@ -411,7 +409,7 @@ fun VaccineScreeningForm() {
                 OutlinedTextField(
                     value = zipCode,
                     onValueChange = { new -> zipCode = new.filter { it.isDigit() } },
-                    label = { Text("รหัสไปรษณีย์") },
+                    label = { Text("รหัสไปรษณีย์ / Zip Code") },
                     modifier = Modifier.fillMaxWidth()
                 )
 
@@ -420,7 +418,7 @@ fun VaccineScreeningForm() {
                 Spacer(modifier = Modifier.height(16.dp))
 
                 // ==================== คำถามคัดกรอง ====================
-                Text("แบบคัดกรองสุขภาพ", style = MaterialTheme.typography.titleMedium)
+                Text("แบบคัดกรองสุขภาพ / Health Screening", style = MaterialTheme.typography.titleMedium)
                 Spacer(modifier = Modifier.height(8.dp))
 
                 if (questionList.isEmpty()) {
@@ -431,9 +429,10 @@ fun VaccineScreeningForm() {
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "ไม่พบข้อมูลแบบคัดกรองในขณะนี้ กรุณาติดต่อเจ้าหน้าที่",
+                            text = "ไม่พบข้อมูลแบบคัดกรองในขณะนี้ กรุณาติดต่อเจ้าหน้าที่\nNo screening questions found at this time. Please contact staff.",
                             style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.outline
+                            color = MaterialTheme.colorScheme.outline,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
                         )
                     }
                 } else {
@@ -457,7 +456,7 @@ fun VaccineScreeningForm() {
                                     OutlinedTextField(
                                         value = remarks[qId] ?: "",
                                         onValueChange = { newValue -> remarks[qId] = newValue },
-                                        label = { Text("ระบุคำตอบของคุณ") },
+                                        label = { Text("ระบุคำตอบของคุณ / Specify your answer") },
                                         modifier = Modifier.fillMaxWidth(),
                                         singleLine = false,
                                         maxLines = 3
@@ -468,7 +467,7 @@ fun VaccineScreeningForm() {
                                             selected = answers[qId] == true,
                                             onClick = { answers[qId] = true }
                                         )
-                                        Text("มี / ใช่")
+                                        Text("มี / ใช่ (Yes)")
                                         Spacer(modifier = Modifier.width(24.dp))
 
                                         RadioButton(
@@ -478,7 +477,7 @@ fun VaccineScreeningForm() {
                                                 remarks.remove(qId)
                                             }
                                         )
-                                        Text("ไม่มี / ไม่ใช่")
+                                        Text("ไม่มี / ไม่ใช่ (No)")
                                     }
                                 }
                             }
@@ -504,7 +503,11 @@ fun VaccineScreeningForm() {
                     val pdpaAnnotatedString = buildAnnotatedString {
                         append("โรงพยาบาลพระจอมเกล้าเจ้าคุณทหาร สถาบันเทคโนโลยีพระจอมเกล้าเจ้าคุณทหารลาดกระบัง (KMITL) มีการเก็บรวบรวม ใช้ และเปิดเผยข้อมูลส่วนบุคคลของท่าน ประกอบด้วย ชื่อ นามสกุล อีเมล เลขบัตรประจำตัวประชาชน อายุ หมายเลขโทรศัพท์ คณะ ข้อมูลสุขภาพ พฤติกรรม และสุขภาวะแวดล้อม เพื่อดำเนินการ ประสานงาน รวมถึงติดต่อกรณีที่มีอันจำเป็นภายหลังการตรวจสุขภาพ ในโครงการตรวจสุขภาพนักศึกษา ประจำปีงบประมาณ 2569 โดยใช้ “ฐานสัญญาและฐานความจำเป็นเพื่อประโยชน์โดยชอบด้วยกฎหมาย”\n\n")
                         append("ทางโรงพยาบาลยืนยันว่าข้อมูลส่วนบุคคลของท่านจะถูกเก็บเป็นความลับ และไม่มีการเปิดเผยโดยปราศจากความยินยอมของท่าน เว้นแต่เป็นการเปิดเผยตามที่กฎหมายกำหนด หรือตามหน้าที่ หรือเมื่อมีข้อบ่งชี้และความจำเป็นในการวินิจฉัย รักษาโรคและฟื้นฟูสภาพของข้าพเจ้า ซึ่งกรณีที่ตรวจพบความผิดปกติ ทางโรงพยาบาลจะมีการแจ้งผลให้ท่านทราบ เพื่อเป็นการติดตามและดูแลต่อไป\n\n")
-                        append("หากมีข้อสงสัยเกี่ยวกับการคุ้มครองข้อมูลส่วนบุคคล สามารถสืบค้นข้อมูลเพิ่มเติมและช่องทางติดต่อได้ที่เว็บไซต์ ")
+
+                        // English translation for PDPA
+                        append("KMITL Hospital collects, uses, and discloses your personal and health data for the purpose of the health screening program. The hospital confirms your personal data will be kept confidential and will not be disclosed without your consent unless required by law or necessary for medical diagnosis and treatment.\n\n")
+
+                        append("หากมีข้อสงสัยเกี่ยวกับการคุ้มครองข้อมูลส่วนบุคคล สามารถสืบค้นข้อมูลเพิ่มเติมและช่องทางติดต่อได้ที่เว็บไซต์ (For further inquiries on PDPA, please visit) ")
                         pushStringAnnotation(tag = "URL", annotation = "https://pdpa.kmitl.ac.th")
                         withStyle(
                             style = SpanStyle(
@@ -542,7 +545,7 @@ fun VaccineScreeningForm() {
                         modifier = Modifier.padding(end = 8.dp)
                     )
                     Text(
-                        text = "ท่านได้รับข้อมูลเกี่ยวกับวัคซีนไข้หวัดใหญ่และได้ทำความเข้าใจแล้ว",
+                        text = "ท่านได้รับข้อมูลเกี่ยวกับวัคซีนไข้หวัดใหญ่และได้ทำความเข้าใจแล้ว\nI have received and understood the information regarding the influenza vaccine.",
                         style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier.padding(top = 12.dp)
                     )
@@ -590,23 +593,21 @@ fun VaccineScreeningForm() {
                                     address = address.ifBlank { null },
                                     zipCode = zipCode.ifBlank { null },
                                     shotDate = parsedShotDate!!,
-                                    // ไม่ต้องส่ง vaccineId และ lotId ตาม API Spec ใหม่ (Backend จัดการ auto-FIFO)
                                     answers = answerList
                                 )
 
-                                // เก็บคืนค่า Response (มี patientId, vaccinationId)
                                 val response = apiService.submitRegistration(requestData)
                                 successResponse = response
                                 isSubmitted = true
 
                             } catch (e: ApiException) {
                                 submitError = when (e.statusCode) {
-                                    400 -> "ข้อมูลไม่ถูกต้องหรือเอกสารซ้ำในระบบ กรุณาตรวจสอบอีกครั้ง"
-                                    409 -> "วัคซีนหมดสต็อกในขณะนี้ กรุณาติดต่อเจ้าหน้าที่"
-                                    else -> "เกิดข้อผิดพลาด (${e.statusCode}) กรุณาลองใหม่อีกครั้ง"
+                                    400 -> "ข้อมูลไม่ถูกต้องหรือเอกสารซ้ำในระบบ กรุณาตรวจสอบอีกครั้ง\nInvalid data or duplicate document in the system. Please check again."
+                                    409 -> "วัคซีนหมดสต็อกในขณะนี้ กรุณาติดต่อเจ้าหน้าที่\nVaccine is out of stock. Please contact staff."
+                                    else -> "เกิดข้อผิดพลาด (${e.statusCode}) กรุณาลองใหม่อีกครั้ง\nAn error occurred (${e.statusCode}). Please try again."
                                 }
                             } catch (e: Exception) {
-                                submitError = "ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ กรุณาลองใหม่อีกครั้ง"
+                                submitError = "ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ กรุณาลองใหม่อีกครั้ง\nCannot connect to the server. Please try again."
                                 println("Network/Exception Error submitting form: ${e.message}")
                             } finally {
                                 isSubmitting = false
@@ -618,7 +619,7 @@ fun VaccineScreeningForm() {
                         .height(50.dp),
                     enabled = acceptedTerms && acceptedVaccineInfo && isAllQuestionsAnswered && isPatientInfoValid && !isSubmitting
                 ) {
-                    Text(if (isSubmitting) "กำลังบันทึก..." else "ยืนยันบันทึกข้อมูล")
+                    Text(if (isSubmitting) "กำลังบันทึก... / Submitting..." else "ยืนยันบันทึกข้อมูล / Confirm and Submit")
                 }
             }
         }
@@ -632,13 +633,13 @@ fun VaccineScreeningForm() {
             verticalArrangement = Arrangement.Center
         ) {
             Text(
-                "บันทึกข้อมูลสำเร็จ!",
+                "บันทึกข้อมูลสำเร็จ!\nSubmission Successful!",
                 style = MaterialTheme.typography.headlineMedium,
-                color = MaterialTheme.colorScheme.primary
+                color = MaterialTheme.colorScheme.primary,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
             Spacer(modifier = Modifier.height(16.dp))
 
-            // แสดงข้อมูลอ้างอิงจาก Response
             successResponse?.let { res ->
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -649,17 +650,14 @@ fun VaccineScreeningForm() {
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text("รหัสผู้ป่วย (Patient ID): ${res.patientId}", style = MaterialTheme.typography.bodyLarge)
-                        Text("รหัสการฉีดวัคซีน: ${res.vaccinationId}", style = MaterialTheme.typography.bodyLarge)
-
-                        // TODO: ตรงนี้สามารถนำ Patient ID ไปสร้างเป็น Barcode หรือ QR Code Compose
-                        // เพื่อให้พยาบาลแสกนหาข้อมูลได้ง่ายในหน้างาน
+                        Text("รหัสการฉีดวัคซีน (Vaccination ID): ${res.vaccinationId}", style = MaterialTheme.typography.bodyLarge)
                     }
                 }
             }
 
             Spacer(modifier = Modifier.height(24.dp))
             Text(
-                "ท่านสามารถแคปหน้าจอนี้ไว้เป็นหลักฐาน\nและออกจากหน้านี้ได้เลย",
+                "ท่านสามารถแคปหน้าจอนี้ไว้เป็นหลักฐาน\nและออกจากหน้านี้ได้เลย\n\nYou may capture this screen as proof and exit this page.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -667,8 +665,6 @@ fun VaccineScreeningForm() {
 
             Spacer(modifier = Modifier.height(32.dp))
             Button(onClick = {
-                // ไม่มีหน้า Home แยกต่างหาก (มีแค่ /vaccine/form, /vaccine/admin, 404) และฟอร์มนี้
-                // เป็นสถานีสาธารณะให้คนถัดไปใช้ต่อ จึงรีเซ็ตฟอร์มกลับสู่สถานะว่างแทนการนำทางไปที่อื่น
                 prefix = ""
                 firstName = ""
                 lastName = ""
@@ -692,7 +688,7 @@ fun VaccineScreeningForm() {
                 isSubmitted = false
                 coroutineScope.launch { scrollState.scrollTo(0) }
             }) {
-                Text("กลับสู่หน้าหลัก")
+                Text("กลับสู่หน้าหลัก / Return to Home")
             }
         }
     }
