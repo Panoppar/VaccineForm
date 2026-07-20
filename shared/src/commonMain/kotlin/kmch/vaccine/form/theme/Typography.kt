@@ -14,8 +14,10 @@ import vaccineform.shared.generated.resources.notosansthai_variablefont_wdth
 @Composable
 fun getAppFontFamily(): FontFamily {
     return FontFamily(
+        // Note: If using a variable font, these might all render at the same default weight
+        // unless you use FontVariation settings or switch to static .ttf files for each weight.
         Font(
-            resource = Res.font.notosansthai_variablefont_wdth, //??พลาดไหม
+            resource = Res.font.notosansthai_variablefont_wdth,
             weight = FontWeight.Normal,
             style = FontStyle.Normal
         ),
@@ -38,132 +40,128 @@ fun getAppTypography(): Typography {
 
     return Typography(
         // ==========================================
-        // DISPLAY: For the largest text on the screen.
-        // Reserved for short, important text or numerals.
+        // DISPLAY: Scaled up for maximum impact
         // ==========================================
         displayLarge = TextStyle(
             fontFamily = appFontFamily,
             fontWeight = FontWeight.Normal,
-            fontSize = 57.sp,
-            lineHeight = 64.sp,
+            fontSize = 64.sp,           // Was 57
+            lineHeight = 72.sp,         // Was 64
             letterSpacing = (-0.25).sp
         ),
         displayMedium = TextStyle(
             fontFamily = appFontFamily,
             fontWeight = FontWeight.Normal,
-            fontSize = 45.sp,
-            lineHeight = 52.sp,
+            fontSize = 52.sp,           // Was 45
+            lineHeight = 60.sp,         // Was 52
             letterSpacing = 0.sp
         ),
         displaySmall = TextStyle(
             fontFamily = appFontFamily,
             fontWeight = FontWeight.Normal,
-            fontSize = 36.sp,
-            lineHeight = 44.sp,
+            fontSize = 44.sp,           // Was 36
+            lineHeight = 52.sp,         // Was 44
             letterSpacing = 0.sp
         ),
 
         // ==========================================
-        // HEADLINES: For standard screen titles.
-        // Best used for short, high-emphasis text on smaller screens.
+        // HEADLINES: Scaled up for better section distinction
         // ==========================================
         headlineLarge = TextStyle(
             fontFamily = appFontFamily,
-            fontWeight = FontWeight.Bold, // Custom emphasis based on your previous setup
-            fontSize = 32.sp,
-            lineHeight = 40.sp,
+            fontWeight = FontWeight.Bold,
+            fontSize = 38.sp,           // Was 32
+            lineHeight = 46.sp,         // Was 40
             letterSpacing = 0.sp
         ),
         headlineMedium = TextStyle(
             fontFamily = appFontFamily,
             fontWeight = FontWeight.Normal,
-            fontSize = 28.sp,
-            lineHeight = 36.sp,
+            fontSize = 34.sp,           // Was 28
+            lineHeight = 42.sp,         // Was 36
             letterSpacing = 0.sp
         ),
         headlineSmall = TextStyle(
             fontFamily = appFontFamily,
             fontWeight = FontWeight.Normal,
-            fontSize = 24.sp,
-            lineHeight = 32.sp,
+            fontSize = 28.sp,           // Was 24
+            lineHeight = 36.sp,         // Was 32
             letterSpacing = 0.sp
         ),
 
         // ==========================================
-        // TITLES: Medium-emphasis text.
-        // Used for medium-emphasis text that remains relatively short.
+        // TITLES: Increased for form elements and dialogs
         // ==========================================
         titleLarge = TextStyle(
             fontFamily = appFontFamily,
             fontWeight = FontWeight.Normal,
-            fontSize = 22.sp,
-            lineHeight = 28.sp,
+            fontSize = 26.sp,           // Was 22
+            lineHeight = 34.sp,         // Was 28
             letterSpacing = 0.sp
         ),
         titleMedium = TextStyle(
             fontFamily = appFontFamily,
             fontWeight = FontWeight.Medium,
-            fontSize = 16.sp,
-            lineHeight = 24.sp,
+            fontSize = 20.sp,           // Was 16
+            lineHeight = 28.sp,         // Was 24
             letterSpacing = 0.15.sp
         ),
         titleSmall = TextStyle(
             fontFamily = appFontFamily,
             fontWeight = FontWeight.Medium,
-            fontSize = 14.sp,
-            lineHeight = 20.sp,
+            fontSize = 18.sp,           // Was 14
+            lineHeight = 26.sp,         // Was 20
             letterSpacing = 0.1.sp
         ),
 
         // ==========================================
-        // BODY: For long-form text and paragraphs.
-        // Used for long-form writing as it works well for small text sizes.
+        // BODY: The core reading text. Bumping these makes
+        // forms and questions much easier to read on mobile.
         // ==========================================
         bodyLarge = TextStyle(
             fontFamily = appFontFamily,
             fontWeight = FontWeight.Normal,
-            fontSize = 16.sp,
-            lineHeight = 24.sp,
+            fontSize = 20.sp,           // Was 16
+            lineHeight = 28.sp,         // Was 24
             letterSpacing = 0.5.sp
         ),
         bodyMedium = TextStyle(
             fontFamily = appFontFamily,
             fontWeight = FontWeight.Normal,
-            fontSize = 14.sp,
-            lineHeight = 20.sp,
+            fontSize = 18.sp,           // Was 14
+            lineHeight = 26.sp,         // Was 20
             letterSpacing = 0.25.sp
         ),
         bodySmall = TextStyle(
             fontFamily = appFontFamily,
             fontWeight = FontWeight.Normal,
-            fontSize = 12.sp,
-            lineHeight = 16.sp,
+            fontSize = 16.sp,           // Was 12
+            lineHeight = 24.sp,         // Was 16
             letterSpacing = 0.4.sp
         ),
 
         // ==========================================
-        // LABELS: For smaller, utilitarian text.
-        // Used for things like text inside buttons, components, or very small captions.
+        // LABELS: Adjusted so buttons and small text remain legible
         // ==========================================
         labelLarge = TextStyle(
             fontFamily = appFontFamily,
             fontWeight = FontWeight.Medium,
-            fontSize = 14.sp,
-            lineHeight = 20.sp,
+            fontSize = 18.sp,           // Was 14
+            lineHeight = 24.sp,         // Was 20
             letterSpacing = 0.1.sp
         ),
         labelMedium = TextStyle(
             fontFamily = appFontFamily,
             fontWeight = FontWeight.Medium,
-            fontSize = 12.sp,
-            lineHeight = 16.sp,
+            fontSize = 16.sp,           // Was 12
+            lineHeight = 22.sp,         // Was 16
             letterSpacing = 0.5.sp
         ),
         labelSmall = TextStyle(
             fontFamily = appFontFamily,
             fontWeight = FontWeight.Medium,
-            fontSize = 11.sp,
-            lineHeight = 16.sp,
+            fontSize = 14.sp,           // Was 11
+            lineHeight = 20.sp,         // Was 16
             letterSpacing = 0.5.sp
         )
     )
