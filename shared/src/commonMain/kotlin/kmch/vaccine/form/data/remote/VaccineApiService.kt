@@ -1,23 +1,38 @@
-package kmch.vaccine.form
+package kmch.vaccine.form.data.remote
 
+import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
+import kmch.vaccine.form.data.remote.dto.HealthStatusDto
+import kmch.vaccine.form.data.remote.dto.LotCreateRequestDto
+import kmch.vaccine.form.data.remote.dto.LotCreateResponseDto
+import kmch.vaccine.form.data.remote.dto.RegistrationDetailDto
+import kmch.vaccine.form.data.remote.dto.RegistrationListResponseDto
+import kmch.vaccine.form.data.remote.dto.RegistrationRequestDto
+import kmch.vaccine.form.data.remote.dto.RegistrationResponseDto
+import kmch.vaccine.form.data.remote.dto.ScreeningQuestionDto
+import kmch.vaccine.form.data.remote.dto.VaccinationRecordRequestDto
+import kmch.vaccine.form.data.remote.dto.VaccineCreateRequestDto
+import kmch.vaccine.form.data.remote.dto.VaccineCreateResponseDto
 
 class ApiException(val statusCode: Int, message: String) : Exception(message)
 
-class VaccineApiService(private val baseUrl: String = API_BASE_URL) {
+class VaccineApiService(
+    private val httpClient: HttpClient,
+    private val baseUrl: String = API_BASE_URL
+) {
 
-    suspend fun checkHealth(): HealthStatus =
+    suspend fun checkHealth(): HealthStatusDto =
         httpClient.get("$baseUrl/health").body()
 
-    suspend fun getScreeningQuestions(): List<ScreeningQuestion> =
+    suspend fun getScreeningQuestions(): List<ScreeningQuestionDto> =
         httpClient.get("$baseUrl/screening-questions").body()
 
     // POST /api/v1/registrations
     // Backend จะทำการ Auto-FIFO เลือกล็อตให้เอง
-    suspend fun submitRegistration(request: RegistrationRequest): RegistrationResponse {
+    suspend fun submitRegistration(request: RegistrationRequestDto): RegistrationResponseDto {
         val response = httpClient.post("$baseUrl/registrations") {
             contentType(ContentType.Application.Json)
             setBody(request)
@@ -33,7 +48,7 @@ class VaccineApiService(private val baseUrl: String = API_BASE_URL) {
         query: String? = null,
         page: Int = 1,
         limit: Int = 20
-    ): RegistrationListResponse =
+    ): RegistrationListResponseDto =
         httpClient.get("$baseUrl/registrations") {
             url {
                 parameters.append("page", page.toString())
@@ -43,7 +58,7 @@ class VaccineApiService(private val baseUrl: String = API_BASE_URL) {
         }.body()
 
     // GET /api/v1/registrations/:patient_id
-    suspend fun getRegistrationDetail(patientId: Int): RegistrationDetail? {
+    suspend fun getRegistrationDetail(patientId: Int): RegistrationDetailDto? {
         val response = httpClient.get("$baseUrl/registrations/$patientId")
         if (response.status == HttpStatusCode.NotFound) return null
         return response.body()
@@ -54,7 +69,7 @@ class VaccineApiService(private val baseUrl: String = API_BASE_URL) {
     // ==========================================
 
     // POST /api/v1/vaccines
-    suspend fun createVaccine(request: VaccineCreateRequest): VaccineCreateResponse {
+    suspend fun createVaccine(request: VaccineCreateRequestDto): VaccineCreateResponseDto {
         val response = httpClient.post("$baseUrl/vaccines") {
             contentType(ContentType.Application.Json)
             setBody(request)
@@ -66,7 +81,7 @@ class VaccineApiService(private val baseUrl: String = API_BASE_URL) {
     }
 
     // POST /api/v1/vaccines/:vaccine_id/lots
-    suspend fun createLot(vaccineId: Int, request: LotCreateRequest): LotCreateResponse {
+    suspend fun createLot(vaccineId: Int, request: LotCreateRequestDto): LotCreateResponseDto {
         val response = httpClient.post("$baseUrl/vaccines/$vaccineId/lots") {
             contentType(ContentType.Application.Json)
             setBody(request)
@@ -83,7 +98,7 @@ class VaccineApiService(private val baseUrl: String = API_BASE_URL) {
 
     // POST /api/v1/vaccination-records
     // บันทึกตรง หักสต็อกทันที (ไม่มี Auto-FIFO) อาจเจอปัญหา 404 (ไม่มีผู้ป่วย), 409 (วัคซีนหมด)
-    suspend fun createVaccinationRecord(request: VaccinationRecordRequest) {
+    suspend fun createVaccinationRecord(request: VaccinationRecordRequestDto) {
         val response = httpClient.post("$baseUrl/vaccination-records") {
             contentType(ContentType.Application.Json)
             setBody(request)

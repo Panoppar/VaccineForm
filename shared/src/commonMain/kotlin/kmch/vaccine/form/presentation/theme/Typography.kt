@@ -1,4 +1,4 @@
-package kmch.vaccine.form.theme
+package kmch.vaccine.form.presentation.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.runtime.Composable

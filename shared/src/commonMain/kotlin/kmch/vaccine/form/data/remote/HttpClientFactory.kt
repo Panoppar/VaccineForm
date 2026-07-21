@@ -1,4 +1,4 @@
-package kmch.vaccine.form
+package kmch.vaccine.form.data.remote
 
 import io.ktor.client.*
 import io.ktor.client.plugins.contentnegotiation.*
@@ -14,19 +14,20 @@ import kotlinx.serialization.json.JsonNamingStrategy
 // และตอนทดสอบ standalone ในเครื่อง (ผ่าน deploy/nginx.conf.template + BACKEND_HOST)
 const val API_BASE_URL = "/vaccine-api/api/v1"
 
-// สร้าง Instance ของ HttpClient เป็น Singleton แบบง่ายๆ
-@OptIn(ExperimentalSerializationApi::class)
-val httpClient = HttpClient {
-    install(ContentNegotiation) {
-        json(Json {
-            prettyPrint = true
-            isLenient = true
-            // ป้องกันแอปแครชเวลา Backend Golang ส่งฟิลด์ใหม่ที่ฝั่งเรายังไม่มีใน Data Class
-            ignoreUnknownKeys = true
-            // ให้ใช้ค่า Default หากข้อมูลบางตัวเป็น null
-            encodeDefaults = true
-            // Backend Golang ใช้ snake_case (เช่น first_name) แต่ฝั่ง Kotlin ใช้ camelCase (firstName)
-            namingStrategy = JsonNamingStrategy.SnakeCase
-        })
+object HttpClientFactory {
+    @OptIn(ExperimentalSerializationApi::class)
+    fun create(): HttpClient = HttpClient {
+        install(ContentNegotiation) {
+            json(Json {
+                prettyPrint = true
+                isLenient = true
+                // ป้องกันแอปแครชเวลา Backend Golang ส่งฟิลด์ใหม่ที่ฝั่งเรายังไม่มีใน Data Class
+                ignoreUnknownKeys = true
+                // ให้ใช้ค่า Default หากข้อมูลบางตัวเป็น null
+                encodeDefaults = true
+                // Backend Golang ใช้ snake_case (เช่น first_name) แต่ฝั่ง Kotlin ใช้ camelCase (firstName)
+                namingStrategy = JsonNamingStrategy.SnakeCase
+            })
+        }
     }
 }
