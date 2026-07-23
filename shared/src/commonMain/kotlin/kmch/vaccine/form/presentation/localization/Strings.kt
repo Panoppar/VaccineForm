@@ -126,6 +126,7 @@ interface Strings {
     val adminLoginSubtitle: String
     val passwordLabel: String
     val passwordIncorrectError: String
+    val passwordLockedOutError: String
     val backToHome: String
     val logIn: String
 }

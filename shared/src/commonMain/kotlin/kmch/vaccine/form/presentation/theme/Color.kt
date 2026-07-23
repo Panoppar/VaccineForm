@@ -22,7 +22,10 @@ val SecondaryContainerLight = Color(0xFFD4E7EE)
 val OnSecondaryContainerLight = Color(0xFF102B34)
 
 val TertiaryLight = BrandOrange
-val OnTertiaryLight = Color(0xFFFFFFFF)
+// White-on-orange is only 2.65:1 (fails WCAG AA's 4.5:1) — reuse the dark
+// brown already defined for the container role instead, which measures
+// 5.38:1 (see ColorContrastTest). See presentation/theme/ContrastRatio.kt.
+val OnTertiaryLight = Color(0xFF442200)
 val TertiaryContainerLight = Color(0xFFFFDFC1)
 val OnTertiaryContainerLight = Color(0xFF442200)
 
@@ -53,6 +56,29 @@ val SurfaceDark = Color(0xFF10141B)
 val SurfaceVariantDark = Color(0xFF44474A)
 val OnSurfaceVariantDark = Color(0xFFC5C6C9)
 val OutlineDark = Color(0xFF8E9092)
+
+// ===== High contrast variants (AccessibilityPreferences.highContrast) =====
+// Maximizes text/background separation (targets AAA ~7:1+ where practical)
+// rather than trying to preserve exact brand hues.
+val HcPrimaryLight = Color(0xFF14213D)
+val HcOnPrimaryLight = Color(0xFFFFFFFF)
+val HcSecondaryLight = Color(0xFF0D2E38)
+val HcOnSecondaryLight = Color(0xFFFFFFFF)
+val HcTertiaryLight = Color(0xFF3D1F00)
+val HcOnTertiaryLight = Color(0xFFFFFFFF)
+val HcBackgroundLight = Color(0xFFFFFFFF)
+val HcOnSurfaceVariantLight = Color(0xFF000000)
+val HcOutlineLight = Color(0xFF000000)
+
+val HcPrimaryDark = Color(0xFFB9D4FF)
+val HcOnPrimaryDark = Color(0xFF000000)
+val HcSecondaryDark = Color(0xFFBEE7F5)
+val HcOnSecondaryDark = Color(0xFF000000)
+val HcTertiaryDark = Color(0xFFFFD9A8)
+val HcOnTertiaryDark = Color(0xFF000000)
+val HcBackgroundDark = Color(0xFF000000)
+val HcOnSurfaceVariantDark = Color(0xFFFFFFFF)
+val HcOutlineDark = Color(0xFFFFFFFF)
 
 // Success (semantic) colors — confirmed/completed states, e.g. vaccination recorded
 val SuccessLight = Color(0xFF2E7D32)
