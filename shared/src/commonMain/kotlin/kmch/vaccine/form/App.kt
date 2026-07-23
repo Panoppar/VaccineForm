@@ -22,9 +22,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import kmch.vaccine.form.di.appModule
+import kmch.vaccine.form.presentation.accessibility.AccessibilityController
+import kmch.vaccine.form.presentation.accessibility.LocalAccessibilityPreferences
 import kmch.vaccine.form.presentation.component.LanguageToggle
 import kmch.vaccine.form.presentation.localization.LocalStrings
 import kmch.vaccine.form.presentation.localization.LocalizationController
@@ -65,8 +69,24 @@ private fun AppContent() {
     val localizationController = koinInject<LocalizationController>()
     val language by localizationController.language.collectAsState()
 
-    CompositionLocalProvider(LocalStrings provides strings(language)) {
-        AppTheme {
+    val accessibilityController = koinInject<AccessibilityController>()
+    val accessibilityPreferences by accessibilityController.preferences.collectAsState()
+
+    // Every .sp size in the app already respects LocalDensity.fontScale, so
+    // scaling text for the whole app is just overriding this one CompositionLocal —
+    // no changes needed anywhere else (see Typography.kt, untouched).
+    val baseDensity = LocalDensity.current
+    val scaledDensity = Density(
+        density = baseDensity.density,
+        fontScale = baseDensity.fontScale * accessibilityPreferences.fontScale
+    )
+
+    CompositionLocalProvider(
+        LocalStrings provides strings(language),
+        LocalAccessibilityPreferences provides accessibilityPreferences,
+        LocalDensity provides scaledDensity
+    ) {
+        AppTheme(highContrast = accessibilityPreferences.highContrast) {
             Surface(modifier = Modifier.fillMaxSize()) {
                 Column(modifier = Modifier.fillMaxSize()) {
                     Box(modifier = Modifier.fillMaxWidth().padding(8.dp)) {

@@ -1,10 +1,13 @@
 package kmch.vaccine.form.presentation.screen.screening
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import kmch.vaccine.form.presentation.localization.LocalStrings
@@ -52,19 +55,34 @@ fun ScreeningQuestionsSection(state: ScreeningFormUiState, viewModel: ScreeningF
                             maxLines = 3
                         )
                     } else {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            RadioButton(
-                                selected = state.answers[qId] == true,
-                                onClick = { viewModel.onAnswerChange(qId, true) }
-                            )
-                            Text(strings.answerYes)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.selectableGroup()
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.selectable(
+                                    selected = state.answers[qId] == true,
+                                    onClick = { viewModel.onAnswerChange(qId, true) },
+                                    role = Role.RadioButton
+                                )
+                            ) {
+                                RadioButton(selected = state.answers[qId] == true, onClick = null)
+                                Text(strings.answerYes)
+                            }
                             Spacer(modifier = Modifier.width(24.dp))
 
-                            RadioButton(
-                                selected = state.answers[qId] == false,
-                                onClick = { viewModel.onAnswerChange(qId, false) }
-                            )
-                            Text(strings.answerNo)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.selectable(
+                                    selected = state.answers[qId] == false,
+                                    onClick = { viewModel.onAnswerChange(qId, false) },
+                                    role = Role.RadioButton
+                                )
+                            ) {
+                                RadioButton(selected = state.answers[qId] == false, onClick = null)
+                                Text(strings.answerNo)
+                            }
                         }
                     }
                 }

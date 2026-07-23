@@ -9,6 +9,9 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -54,16 +57,17 @@ fun AdminLoginScreen(
                     singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                    isError = state.isError,
+                    isError = state.isError || state.isLockedOut,
+                    enabled = !state.isLockedOut,
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                if (state.isError) {
+                if (state.isError || state.isLockedOut) {
                     Text(
-                        text = strings.passwordIncorrectError,
+                        text = if (state.isLockedOut) strings.passwordLockedOutError else strings.passwordIncorrectError,
                         color = MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.align(Alignment.Start)
+                        modifier = Modifier.align(Alignment.Start).semantics { liveRegion = LiveRegionMode.Polite }
                     )
                 }
 
@@ -75,7 +79,7 @@ fun AdminLoginScreen(
                         Text(strings.backToHome)
                     }
 
-                    Button(onClick = viewModel::submit) {
+                    Button(onClick = viewModel::submit, enabled = !state.isLockedOut) {
                         Text(strings.logIn)
                     }
                 }

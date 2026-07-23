@@ -134,6 +134,7 @@ object StringsEn : Strings {
     override val adminLoginSubtitle = "Please enter the password to continue"
     override val passwordLabel = "Password"
     override val passwordIncorrectError = "Incorrect password"
+    override val passwordLockedOutError = "Too many incorrect attempts. Please wait a moment and try again."
     override val backToHome = "Back to Home"
     override val logIn = "Log In"
 }

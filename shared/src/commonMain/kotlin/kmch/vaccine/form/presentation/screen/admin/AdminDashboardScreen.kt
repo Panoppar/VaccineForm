@@ -9,6 +9,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -17,17 +19,37 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import kmch.vaccine.form.presentation.localization.LocalStrings
 import kmch.vaccine.form.presentation.screen.screening.ScreeningFormScreen
+import kmch.vaccine.form.presentation.viewmodel.AdminSessionViewModel
+import kotlinx.browser.window
+import org.koin.compose.viewmodel.koinViewModel
+import org.w3c.dom.events.Event
 
 // Auth gate: shows the password screen first, then the dashboard once verified.
+// Also owns the idle auto-logout timer (AdminSessionViewModel) for the entire
+// admin area, since this composable stays mounted for as long as the admin
+// route is active.
 @Composable
 fun ProtectedAdminScreen(onNavigateBack: () -> Unit) {
-    var isAuthenticated by remember { mutableStateOf(false) }
+    val sessionViewModel: AdminSessionViewModel = koinViewModel()
+    val sessionState by sessionViewModel.uiState.collectAsState()
 
-    if (isAuthenticated) {
+    DisposableEffect(Unit) {
+        val onActivity: (Event) -> Unit = { sessionViewModel.markActivity() }
+        window.addEventListener("mousemove", onActivity)
+        window.addEventListener("keydown", onActivity)
+        window.addEventListener("click", onActivity)
+        onDispose {
+            window.removeEventListener("mousemove", onActivity)
+            window.removeEventListener("keydown", onActivity)
+            window.removeEventListener("click", onActivity)
+        }
+    }
+
+    if (sessionState.isAuthenticated) {
         AdminDashboardScreen(onNavigateBack = onNavigateBack)
     } else {
         AdminLoginScreen(
-            onLoginSuccess = { isAuthenticated = true },
+            onLoginSuccess = { sessionViewModel.login() },
             onNavigateBack = onNavigateBack
         )
     }

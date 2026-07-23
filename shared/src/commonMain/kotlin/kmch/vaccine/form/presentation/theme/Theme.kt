@@ -64,15 +64,56 @@ private val DarkColorScheme = darkColorScheme(
     outline = OutlineDark
 )
 
+private val HighContrastLightColorScheme = lightColorScheme(
+    primary = HcPrimaryLight,
+    onPrimary = HcOnPrimaryLight,
+    primaryContainer = HcPrimaryLight,
+    onPrimaryContainer = HcOnPrimaryLight,
+    secondary = HcSecondaryLight,
+    onSecondary = HcOnSecondaryLight,
+    secondaryContainer = HcSecondaryLight,
+    onSecondaryContainer = HcOnSecondaryLight,
+    tertiary = HcTertiaryLight,
+    onTertiary = HcOnTertiaryLight,
+    tertiaryContainer = HcTertiaryLight,
+    onTertiaryContainer = HcOnTertiaryLight,
+    background = HcBackgroundLight,
+    surface = HcBackgroundLight,
+    surfaceVariant = HcBackgroundLight,
+    onSurfaceVariant = HcOnSurfaceVariantLight,
+    outline = HcOutlineLight
+)
+
+private val HighContrastDarkColorScheme = darkColorScheme(
+    primary = HcPrimaryDark,
+    onPrimary = HcOnPrimaryDark,
+    primaryContainer = HcPrimaryDark,
+    onPrimaryContainer = HcOnPrimaryDark,
+    secondary = HcSecondaryDark,
+    onSecondary = HcOnSecondaryDark,
+    secondaryContainer = HcSecondaryDark,
+    onSecondaryContainer = HcOnSecondaryDark,
+    tertiary = HcTertiaryDark,
+    onTertiary = HcOnTertiaryDark,
+    tertiaryContainer = HcTertiaryDark,
+    onTertiaryContainer = HcOnTertiaryDark,
+    background = HcBackgroundDark,
+    surface = HcBackgroundDark,
+    surfaceVariant = HcBackgroundDark,
+    onSurfaceVariant = HcOnSurfaceVariantDark,
+    outline = HcOutlineDark
+)
+
 @Composable
 fun AppTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
+    highContrast: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val colorScheme = if (darkTheme) {
-        DarkColorScheme
+        if (highContrast) HighContrastDarkColorScheme else DarkColorScheme
     } else {
-        LightColorScheme
+        if (highContrast) HighContrastLightColorScheme else LightColorScheme
     }
 
     MaterialTheme(
